@@ -8,10 +8,14 @@
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.canvas.Canvas?>
+<?import javafx.geometry.Insets?>
 
 <BorderPane fx:id="borderPane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.cgvsu.GuiController">
     <top>
@@ -21,6 +25,9 @@
                     <MenuItem fx:id="openMenuItem" mnemonicParsing="false" onAction="#onOpenModelMenuItemClick" text="Load Model..."/>
                     <SeparatorMenuItem/>
                     <MenuItem fx:id="exitMenuItem" mnemonicParsing="false" onAction="#onExitMenuItemClick" text="Exit"/>
+                </Menu>
+                <Menu mnemonicParsing="false" text="Edit">
+                    <MenuItem fx:id="resetTransformMenuItem" mnemonicParsing="false" onAction="#handleResetTransform" text="Reset Transform"/>
                 </Menu>
                 <Menu mnemonicParsing="false" text="Camera">
                     <MenuItem fx:id="resetCameraMenuItem" mnemonicParsing="false" onAction="#handleResetCamera" text="Reset Camera"/>
@@ -32,21 +39,101 @@
             <ToolBar>
                 <Button fx:id="openButton" onAction="#onOpenModelMenuItemClick" text="Open Model"/>
                 <Separator/>
+                <Label text="Camera:"/>
                 <Button fx:id="resetCameraButton" onAction="#handleResetCamera" text="Reset Camera"/>
                 <Separator/>
-                <Label text="Movement:"/>
-                <Button fx:id="forwardButton" onAction="#handleCameraForward" text="↑ Forward"/>
-                <Button fx:id="backwardButton" onAction="#handleCameraBackward" text="↓ Backward"/>
-                <Button fx:id="leftButton" onAction="#handleCameraLeft" text="← Left"/>
-                <Button fx:id="rightButton" onAction="#handleCameraRight" text="→ Right"/>
-                <Button fx:id="upButton" onAction="#handleCameraUp" text="↑ Up"/>
-                <Button fx:id="downButton" onAction="#handleCameraDown" text="↓ Down"/>
+                <Label text="Transform:"/>
+                <Button fx:id="resetTransformButton" onAction="#handleResetTransform" text="Reset Transform"/>
             </ToolBar>
         </VBox>
     </top>
+    <left>
+        <VBox spacing="10" style="-fx-padding: 10; -fx-background-color: #f5f5f5;" minWidth="250" prefWidth="250">
+            <TitledPane text="Transform" expanded="true">
+                <GridPane hgap="5" vgap="5" style="-fx-padding: 10;">
+                    <!-- Position -->
+                    <Label text="Position:" GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="3"/>
+                    <Label text="X:" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                    <TextField fx:id="positionXField" prefWidth="70" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                    <Button fx:id="positionXDecButton" text="-" prefWidth="30" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                    <Button fx:id="positionXIncButton" text="+" prefWidth="30" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+                    
+                    <Label text="Y:" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                    <TextField fx:id="positionYField" prefWidth="70" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                    <Button fx:id="positionYDecButton" text="-" prefWidth="30" GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+                    <Button fx:id="positionYIncButton" text="+" prefWidth="30" GridPane.columnIndex="3" GridPane.rowIndex="2"/>
+                    
+                    <Label text="Z:" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                    <TextField fx:id="positionZField" prefWidth="70" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+                    <Button fx:id="positionZDecButton" text="-" prefWidth="30" GridPane.columnIndex="2" GridPane.rowIndex="3"/>
+                    <Button fx:id="positionZIncButton" text="+" prefWidth="30" GridPane.columnIndex="3" GridPane.rowIndex="3"/>
+
+                    <!-- Rotation -->
+                    <Label text="Rotation:" GridPane.columnIndex="0" GridPane.rowIndex="4" GridPane.columnSpan="3" style="-fx-padding-top: 10;"/>
+                    <Label text="X:" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+                    <TextField fx:id="rotationXField" prefWidth="70" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+                    <Button fx:id="rotationXDecButton" text="-" prefWidth="30" GridPane.columnIndex="2" GridPane.rowIndex="5"/>
+                    <Button fx:id="rotationXIncButton" text="+" prefWidth="30" GridPane.columnIndex="3" GridPane.rowIndex="5"/>
+                    
+                    <Label text="Y:" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+                    <TextField fx:id="rotationYField" prefWidth="70" GridPane.columnIndex="1" GridPane.rowIndex="6"/>
+                    <Button fx:id="rotationYDecButton" text="-" prefWidth="30" GridPane.columnIndex="2" GridPane.rowIndex="6"/>
+                    <Button fx:id="rotationYIncButton" text="+" prefWidth="30" GridPane.columnIndex="3" GridPane.rowIndex="6"/>
+                    
+                    <Label text="Z:" GridPane.columnIndex="0" GridPane.rowIndex="7"/>
+                    <TextField fx:id="rotationZField" prefWidth="70" GridPane.columnIndex="1" GridPane.rowIndex="7"/>
+                    <Button fx:id="rotationZDecButton" text="-" prefWidth="30" GridPane.columnIndex="2" GridPane.rowIndex="7"/>
+                    <Button fx:id="rotationZIncButton" text="+" prefWidth="30" GridPane.columnIndex="3" GridPane.rowIndex="7"/>
+
+                    <!-- Scale -->
+                    <Label text="Scale:" GridPane.columnIndex="0" GridPane.rowIndex="8" GridPane.columnSpan="3" style="-fx-padding-top: 10;"/>
+                    <Label text="X:" GridPane.columnIndex="0" GridPane.rowIndex="9"/>
+                    <TextField fx:id="scaleXField" prefWidth="70" GridPane.columnIndex="1" GridPane.rowIndex="9"/>
+                    <Button fx:id="scaleXDecButton" text="-" prefWidth="30" GridPane.columnIndex="2" GridPane.rowIndex="9"/>
+                    <Button fx:id="scaleXIncButton" text="+" prefWidth="30" GridPane.columnIndex="3" GridPane.rowIndex="9"/>
+                    
+                    <Label text="Y:" GridPane.columnIndex="0" GridPane.rowIndex="10"/>
+                    <TextField fx:id="scaleYField" prefWidth="70" GridPane.columnIndex="1" GridPane.rowIndex="10"/>
+                    <Button fx:id="scaleYDecButton" text="-" prefWidth="30" GridPane.columnIndex="2" GridPane.rowIndex="10"/>
+                    <Button fx:id="scaleYIncButton" text="+" prefWidth="30" GridPane.columnIndex="3" GridPane.rowIndex="10"/>
+                    
+                    <Label text="Z:" GridPane.columnIndex="0" GridPane.rowIndex="11"/>
+                    <TextField fx:id="scaleZField" prefWidth="70" GridPane.columnIndex="1" GridPane.rowIndex="11"/>
+                    <Button fx:id="scaleZDecButton" text="-" prefWidth="30" GridPane.columnIndex="2" GridPane.rowIndex="11"/>
+                    <Button fx:id="scaleZIncButton" text="+" prefWidth="30" GridPane.columnIndex="3" GridPane.rowIndex="11"/>
+                </GridPane>
+            </TitledPane>
+            
+            <TitledPane text="Quick Actions" expanded="true">
+                <VBox spacing="5" style="-fx-padding: 10;">
+                    <HBox spacing="5">
+                        <Button fx:id="moveModeButton" text="Move" prefWidth="70" onAction="#handleSetMoveMode"/>
+                        <Button fx:id="rotateModeButton" text="Rotate" prefWidth="70" onAction="#handleSetRotateMode"/>
+                        <Button fx:id="scaleModeButton" text="Scale" prefWidth="70" onAction="#handleSetScaleMode"/>
+                    </HBox>
+                    <Separator/>
+                    <Label text="Mode: " fx:id="currentModeLabel" style="-fx-font-weight: bold;"/>
+                </VBox>
+            </TitledPane>
+        </VBox>
+    </left>
     <center>
         <Canvas fx:id="canvas" width="1600" height="870"/>
     </center>
+    <right>
+        <VBox spacing="10" style="-fx-padding: 10; -fx-background-color: #f5f5f5;" minWidth="200" prefWidth="200">
+            <TitledPane text="Scene Info" expanded="true">
+                <VBox spacing="5" style="-fx-padding: 10;">
+                    <Label fx:id="sceneModelInfoLabel" text="No model loaded" wrapText="true"/>
+                    <Separator/>
+                    <Label text="Transform Info:" style="-fx-font-weight: bold;"/>
+                    <Label fx:id="scenePositionLabel" text="Position: (0, 0, 0)"/>
+                    <Label fx:id="sceneRotationLabel" text="Rotation: (0, 0, 0)"/>
+                    <Label fx:id="sceneScaleLabel" text="Scale: (1, 1, 1)"/>
+                </VBox>
+            </TitledPane>
+        </VBox>
+    </right>
     <bottom>
         <HBox fx:id="statusBar" spacing="10" style="-fx-padding: 5; -fx-background-color: #f0f0f0;">
             <Label fx:id="modelInfoLabel" text="No model loaded"/>
@@ -55,7 +142,7 @@
             <Separator orientation="VERTICAL"/>
             <Label fx:id="cameraTargetLabel" text="Camera Target: (0, 0, 0)"/>
             <Separator orientation="VERTICAL"/>
-            <Label fx:id="helpLabel" text="Left mouse drag: Rotate | Scroll: Zoom | Arrow keys: Move"/>
+            <Label fx:id="helpLabel" text="Left mouse drag: Rotate Camera | Scroll: Zoom | Arrow keys: Move Camera"/>
         </HBox>
     </bottom>
 </BorderPane>
