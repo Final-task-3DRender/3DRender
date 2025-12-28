@@ -3,52 +3,59 @@
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuItem?>
-<?import javafx.scene.input.KeyCodeCombination?>
-<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.control.ToolBar?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.canvas.Canvas?>
 
-<AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.cgvsu.GuiController">
-    <MenuBar>
-        <Menu mnemonicParsing="false" text="File">
-            <MenuItem mnemonicParsing="false" onAction="#onOpenModelMenuItemClick" text="Load Model">
-            <accelerator>
-                <KeyCodeCombination alt="UP" control="DOWN" meta="UP" shift="UP" shortcut="UP" code="F"/>
-            </accelerator>
-            </MenuItem>
-        </Menu>
-        <Menu mnemonicParsing="false" text="Camera Options">
-            <MenuItem mnemonicParsing="false" onAction="#handleCameraForward" text="Forward">
-                <accelerator>
-                    <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="UP"/>
-                </accelerator>
-            </MenuItem>
-            <MenuItem mnemonicParsing="false" onAction="#handleCameraBackward" text="Backward">
-                <accelerator>
-                    <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="DOWN"/>
-                </accelerator>
-            </MenuItem>
-            <MenuItem mnemonicParsing="false" onAction="#handleCameraLeft" text="Left">
-                <accelerator>
-                    <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="LEFT"/>
-                </accelerator>
-            </MenuItem>
-            <MenuItem mnemonicParsing="false" onAction="#handleCameraRight" text="Right">
-                <accelerator>
-                    <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="RIGHT"/>
-                </accelerator>
-            </MenuItem>
-            <MenuItem mnemonicParsing="false" onAction="#handleCameraUp" text="Up">
-                <accelerator>
-                    <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="W"/>
-                </accelerator>
-            </MenuItem>
-            <MenuItem mnemonicParsing="false" onAction="#handleCameraDown" text="Down">
-                <accelerator>
-                    <KeyCodeCombination alt="UP" control="UP" meta="UP" shift="UP" shortcut="UP" code="S"/>
-                </accelerator>
-            </MenuItem>
-        </Menu>
-    </MenuBar>
-
-    <Canvas fx:id="canvas" width="1600" height="870" AnchorPane.topAnchor="30.0"/>
-</AnchorPane>
+<BorderPane fx:id="borderPane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.cgvsu.GuiController">
+    <top>
+        <VBox>
+            <MenuBar>
+                <Menu mnemonicParsing="false" text="File">
+                    <MenuItem fx:id="openMenuItem" mnemonicParsing="false" onAction="#onOpenModelMenuItemClick" text="Load Model..."/>
+                    <SeparatorMenuItem/>
+                    <MenuItem fx:id="exitMenuItem" mnemonicParsing="false" onAction="#onExitMenuItemClick" text="Exit"/>
+                </Menu>
+                <Menu mnemonicParsing="false" text="Camera">
+                    <MenuItem fx:id="resetCameraMenuItem" mnemonicParsing="false" onAction="#handleResetCamera" text="Reset Camera"/>
+                </Menu>
+                <Menu mnemonicParsing="false" text="Help">
+                    <MenuItem fx:id="helpMenuItem" mnemonicParsing="false" onAction="#onHelpMenuItemClick" text="Controls"/>
+                </Menu>
+            </MenuBar>
+            <ToolBar>
+                <Button fx:id="openButton" onAction="#onOpenModelMenuItemClick" text="Open Model"/>
+                <Separator/>
+                <Button fx:id="resetCameraButton" onAction="#handleResetCamera" text="Reset Camera"/>
+                <Separator/>
+                <Label text="Movement:"/>
+                <Button fx:id="forwardButton" onAction="#handleCameraForward" text="↑ Forward"/>
+                <Button fx:id="backwardButton" onAction="#handleCameraBackward" text="↓ Backward"/>
+                <Button fx:id="leftButton" onAction="#handleCameraLeft" text="← Left"/>
+                <Button fx:id="rightButton" onAction="#handleCameraRight" text="→ Right"/>
+                <Button fx:id="upButton" onAction="#handleCameraUp" text="↑ Up"/>
+                <Button fx:id="downButton" onAction="#handleCameraDown" text="↓ Down"/>
+            </ToolBar>
+        </VBox>
+    </top>
+    <center>
+        <Canvas fx:id="canvas" width="1600" height="870"/>
+    </center>
+    <bottom>
+        <HBox fx:id="statusBar" spacing="10" style="-fx-padding: 5; -fx-background-color: #f0f0f0;">
+            <Label fx:id="modelInfoLabel" text="No model loaded"/>
+            <Separator orientation="VERTICAL"/>
+            <Label fx:id="cameraPositionLabel" text="Camera Position: (0, 0, 100)"/>
+            <Separator orientation="VERTICAL"/>
+            <Label fx:id="cameraTargetLabel" text="Camera Target: (0, 0, 0)"/>
+            <Separator orientation="VERTICAL"/>
+            <Label fx:id="helpLabel" text="Left mouse drag: Rotate | Scroll: Zoom | Arrow keys: Move"/>
+        </HBox>
+    </bottom>
+</BorderPane>
