@@ -23,6 +23,7 @@
             <MenuBar>
                 <Menu mnemonicParsing="false" text="File">
                     <MenuItem fx:id="openMenuItem" mnemonicParsing="false" onAction="#onOpenModelMenuItemClick" text="Load Model..."/>
+                    <MenuItem fx:id="saveMenuItem" mnemonicParsing="false" onAction="#onSaveModelMenuItemClick" text="Save Model..."/>
                     <SeparatorMenuItem/>
                     <MenuItem fx:id="exitMenuItem" mnemonicParsing="false" onAction="#onExitMenuItemClick" text="Exit"/>
                 </Menu>
@@ -38,6 +39,7 @@
             </MenuBar>
             <ToolBar>
                 <Button fx:id="openButton" onAction="#onOpenModelMenuItemClick" text="Open Model"/>
+                <Button fx:id="saveButton" onAction="#onSaveModelMenuItemClick" text="Save Model"/>
                 <Separator/>
                 <Label text="Camera:"/>
                 <Button fx:id="resetCameraButton" onAction="#handleResetCamera" text="Reset Camera"/>

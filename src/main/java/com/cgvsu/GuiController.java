@@ -31,6 +31,7 @@ import javax.vecmath.Vector3f;
 import com.cgvsu.model.Model;
 import com.cgvsu.model.ModelTransform;
 import com.cgvsu.objreader.ObjReader;
+import com.cgvsu.objwriter.ObjWriter;
 import com.cgvsu.render_engine.Camera;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Button;
@@ -64,6 +65,9 @@ public class GuiController {
 
     @FXML
     private MenuItem openMenuItem;
+
+    @FXML
+    private MenuItem saveMenuItem;
 
     @FXML
     private MenuItem exitMenuItem;
@@ -491,6 +495,9 @@ public class GuiController {
         if (openMenuItem != null) {
             openMenuItem.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN));
         }
+        if (saveMenuItem != null) {
+            saveMenuItem.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN));
+        }
         if (exitMenuItem != null) {
             exitMenuItem.setAccelerator(new KeyCodeCombination(KeyCode.Q));
         }
@@ -544,6 +551,39 @@ public class GuiController {
             showError("Error loading model", "Failed to read file: " + exception.getMessage());
         } catch (Exception exception) {
             showError("Error parsing model", "Failed to parse OBJ file: " + exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void onSaveModelMenuItemClick() {
+        if (mesh == null) {
+            showError("No model to save", "Please load a model first.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model (*.obj)", "*.obj"));
+        fileChooser.setTitle("Save Model");
+        
+        // Set default filename if model was loaded from file
+        if (loadedFileName != null) {
+            fileChooser.setInitialFileName(loadedFileName);
+        } else {
+            fileChooser.setInitialFileName("model.obj");
+        }
+
+        File file = fileChooser.showSaveDialog((Stage) canvas.getScene().getWindow());
+        if (file == null) {
+            return;
+        }
+
+        try {
+            ObjWriter.saveModel(mesh, file.getAbsolutePath());
+            showSuccess("Model saved", "Model successfully saved to:\n" + file.getAbsolutePath());
+        } catch (IOException exception) {
+            showError("Error saving model", "Failed to save file: " + exception.getMessage());
+        } catch (Exception exception) {
+            showError("Error saving model", "Unexpected error: " + exception.getMessage());
         }
     }
 
@@ -749,6 +789,14 @@ public class GuiController {
 
     private void showError(String title, String message) {
         Alert alert = new Alert(AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void showSuccess(String title, String message) {
+        Alert alert = new Alert(AlertType.INFORMATION);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
