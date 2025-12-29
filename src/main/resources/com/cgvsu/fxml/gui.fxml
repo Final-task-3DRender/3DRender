@@ -103,18 +103,6 @@
                     <Button fx:id="scaleZIncButton" text="+" prefWidth="30" GridPane.columnIndex="3" GridPane.rowIndex="11"/>
                 </GridPane>
             </TitledPane>
-            
-            <TitledPane text="Quick Actions" expanded="true">
-                <VBox spacing="5" style="-fx-padding: 10;">
-                    <HBox spacing="5">
-                        <Button fx:id="moveModeButton" text="Move" prefWidth="70" onAction="#handleSetMoveMode"/>
-                        <Button fx:id="rotateModeButton" text="Rotate" prefWidth="70" onAction="#handleSetRotateMode"/>
-                        <Button fx:id="scaleModeButton" text="Scale" prefWidth="70" onAction="#handleSetScaleMode"/>
-                    </HBox>
-                    <Separator/>
-                    <Label text="Mode: " fx:id="currentModeLabel" style="-fx-font-weight: bold;"/>
-                </VBox>
-            </TitledPane>
         </VBox>
     </left>
     <center>
