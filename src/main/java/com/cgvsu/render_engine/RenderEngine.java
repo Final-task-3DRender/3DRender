@@ -6,6 +6,7 @@ import com.cgvsu.math.Vector3f;
 import javafx.scene.canvas.GraphicsContext;
 import javax.vecmath.*;
 import com.cgvsu.model.Model;
+import com.cgvsu.model.ModelTransform;
 import static com.cgvsu.render_engine.GraphicConveyor.*;
 
 public class RenderEngine {
@@ -17,7 +18,27 @@ public class RenderEngine {
             final int width,
             final int height)
     {
-        Matrix4f modelMatrix = rotateScaleTranslate();
+        render(graphicsContext, camera, mesh, null, width, height);
+    }
+
+    public static void render(
+            final GraphicsContext graphicsContext,
+            final Camera camera,
+            final Model mesh,
+            final ModelTransform transform,
+            final int width,
+            final int height)
+    {
+        Matrix4f modelMatrix;
+        if (transform != null) {
+            modelMatrix = createModelMatrix(
+                    transform.getPosition(),
+                    transform.getRotation(),
+                    transform.getScale()
+            );
+        } else {
+            modelMatrix = rotateScaleTranslate();
+        }
         Matrix4f viewMatrix = camera.getViewMatrix();
         Matrix4f projectionMatrix = camera.getProjectionMatrix();
 
