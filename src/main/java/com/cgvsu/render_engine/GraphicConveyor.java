@@ -1,15 +1,11 @@
 package com.cgvsu.render_engine;
-import javax.vecmath.*;
+
+import com.cgvsu.math.*;
 
 public class GraphicConveyor {
 
     public static Matrix4f rotateScaleTranslate() {
-        float[] matrix = new float[]{
-                1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1};
-        return new Matrix4f(matrix);
+        return Matrix4f.identity();
     }
 
     public static Matrix4f lookAt(Vector3f eye, Vector3f target) {
@@ -17,24 +13,32 @@ public class GraphicConveyor {
     }
 
     public static Matrix4f lookAt(Vector3f eye, Vector3f target, Vector3f up) {
-        Vector3f resultX = new Vector3f();
-        Vector3f resultY = new Vector3f();
-        Vector3f resultZ = new Vector3f();
+        // Вычисляем базис камеры
+        Vector3f z = target.subtract(eye).normalize();
+        Vector3f x = up.cross(z).normalize();
+        Vector3f y = z.cross(x).normalize();
 
-        resultZ.sub(target, eye);
-        resultX.cross(up, resultZ);
-        resultY.cross(resultZ, resultX);
+        // Матрица переноса Tv (перемещение начала координат в позицию камеры)
+        Matrix4f translation = Matrix4f.identity();
+        translation.set(0, 3, -eye.x);
+        translation.set(1, 3, -eye.y);
+        translation.set(2, 3, -eye.z);
 
-        resultX.normalize();
-        resultY.normalize();
-        resultZ.normalize();
+        // Матрица проекции Pv (проекция на оси камеры)
+        // Для векторов-столбцов базисные векторы записываются в столбцы
+        Matrix4f projection = Matrix4f.identity();
+        projection.set(0, 0, x.x);
+        projection.set(1, 0, x.y);
+        projection.set(2, 0, x.z);
+        projection.set(0, 1, y.x);
+        projection.set(1, 1, y.y);
+        projection.set(2, 1, y.z);
+        projection.set(0, 2, z.x);
+        projection.set(1, 2, z.y);
+        projection.set(2, 2, z.z);
 
-        float[] matrix = new float[]{
-                resultX.x, resultY.x, resultZ.x, 0,
-                resultX.y, resultY.y, resultZ.y, 0,
-                resultX.z, resultY.z, resultZ.z, 0,
-                -resultX.dot(eye), -resultY.dot(eye), -resultZ.dot(eye), 1};
-        return new Matrix4f(matrix);
+        // V = Pv * Tv
+        return projection.multiply(translation);
     }
 
     public static Matrix4f perspective(
@@ -42,25 +46,31 @@ public class GraphicConveyor {
             final float aspectRatio,
             final float nearPlane,
             final float farPlane) {
-        Matrix4f result = new Matrix4f();
-        float tangentMinusOnDegree = (float) (1.0F / (Math.tan(fov * 0.5F)));
-        result.m00 = tangentMinusOnDegree / aspectRatio;
-        result.m11 = tangentMinusOnDegree;
-        result.m22 = (farPlane + nearPlane) / (farPlane - nearPlane);
-        result.m23 = 1.0F;
-        result.m32 = 2 * (nearPlane * farPlane) / (nearPlane - farPlane);
+        Matrix4f result = Matrix4f.zero();
+        float tanFov = (float) Math.tan(fov * 0.5F);
+        
+        // По формуле из задания для векторов-столбцов
+        result.set(0, 0, 1.0f / (tanFov * aspectRatio));
+        result.set(1, 1, 1.0f / tanFov);
+        result.set(2, 2, (farPlane + nearPlane) / (farPlane - nearPlane));
+        result.set(2, 3, 1.0f);
+        result.set(3, 2, 2.0f * nearPlane * farPlane / (nearPlane - farPlane));
+        
         return result;
     }
 
-    public static Vector3f multiplyMatrix4ByVector3(final Matrix4f matrix, final Vector3f vertex) {
-        final float x = (vertex.x * matrix.m00) + (vertex.y * matrix.m10) + (vertex.z * matrix.m20) + matrix.m30;
-        final float y = (vertex.x * matrix.m01) + (vertex.y * matrix.m11) + (vertex.z * matrix.m21) + matrix.m31;
-        final float z = (vertex.x * matrix.m02) + (vertex.y * matrix.m12) + (vertex.z * matrix.m22) + matrix.m32;
-        final float w = (vertex.x * matrix.m03) + (vertex.y * matrix.m13) + (vertex.z * matrix.m23) + matrix.m33;
-        return new Vector3f(x / w, y / w, z / w);
-    }
-
-    public static Point2f vertexToPoint(final Vector3f vertex, final int width, final int height) {
-        return new Point2f(vertex.x * width + width / 2.0F, -vertex.y * height + height / 2.0F);
+    /**
+     * Преобразует однородные координаты в экранные координаты
+     * @param vertex однородные координаты (после нормализации, в диапазоне [-1, 1])
+     * @param width ширина экрана
+     * @param height высота экрана
+     * @return точка на экране
+     */
+    public static Point2f vertexToPoint(final Vector4f vertex, final int width, final int height) {
+        // vertex уже нормализован (x/w, y/w, z/w)
+        // Преобразуем из диапазона [-1, 1] в экранные координаты
+        float x = vertex.x * width / 2.0f + width / 2.0f;
+        float y = -vertex.y * height / 2.0f + height / 2.0f; // инвертируем Y
+        return new Point2f(x, y);
     }
 }

@@ -1,6 +1,7 @@
 package com.cgvsu.render_engine;
-import javax.vecmath.Vector3f;
-import javax.vecmath.Matrix4f;
+
+import com.cgvsu.math.Vector3f;
+import com.cgvsu.math.Matrix4f;
 
 public class Camera {
 
@@ -11,8 +12,8 @@ public class Camera {
             final float aspectRatio,
             final float nearPlane,
             final float farPlane) {
-        this.position = position;
-        this.target = target;
+        this.position = new Vector3f(position);
+        this.target = new Vector3f(target);
         this.fov = fov;
         this.aspectRatio = aspectRatio;
         this.nearPlane = nearPlane;
@@ -20,11 +21,11 @@ public class Camera {
     }
 
     public void setPosition(final Vector3f position) {
-        this.position = position;
+        this.position = new Vector3f(position);
     }
 
     public void setTarget(final Vector3f target) {
-        this.target = target;
+        this.target = new Vector3f(target);
     }
 
     public void setAspectRatio(final float aspectRatio) {
@@ -32,19 +33,19 @@ public class Camera {
     }
 
     public Vector3f getPosition() {
-        return position;
+        return new Vector3f(position);
     }
 
     public Vector3f getTarget() {
-        return target;
+        return new Vector3f(target);
     }
 
     public void movePosition(final Vector3f translation) {
-        this.position.add(translation);
+        this.position = this.position.add(translation);
     }
 
     public void moveTarget(final Vector3f translation) {
-        this.target.add(target);
+        this.target = this.target.add(translation);
     }
 
     Matrix4f getViewMatrix() {
