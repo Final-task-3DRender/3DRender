@@ -8,6 +8,71 @@ public class GraphicConveyor {
         return Matrix4f.identity();
     }
 
+    public static Matrix4f createTranslationMatrix(Vector3f translation) {
+        Matrix4f result = new Matrix4f();
+        result.setIdentity();
+        result.m03 = translation.x;
+        result.m13 = translation.y;
+        result.m23 = translation.z;
+        return result;
+    }
+
+    public static Matrix4f createRotationMatrix(Vector3f rotationDegrees) {
+        // Конвертируем градусы в радианы
+        float rx = (float) Math.toRadians(rotationDegrees.x);
+        float ry = (float) Math.toRadians(rotationDegrees.y);
+        float rz = (float) Math.toRadians(rotationDegrees.z);
+
+        // Матрицы вращения вокруг каждой оси
+        Matrix4f rotX = new Matrix4f();
+        rotX.setIdentity();
+        rotX.m11 = (float) Math.cos(rx);
+        rotX.m12 = -(float) Math.sin(rx);
+        rotX.m21 = (float) Math.sin(rx);
+        rotX.m22 = (float) Math.cos(rx);
+
+        Matrix4f rotY = new Matrix4f();
+        rotY.setIdentity();
+        rotY.m00 = (float) Math.cos(ry);
+        rotY.m02 = (float) Math.sin(ry);
+        rotY.m20 = -(float) Math.sin(ry);
+        rotY.m22 = (float) Math.cos(ry);
+
+        Matrix4f rotZ = new Matrix4f();
+        rotZ.setIdentity();
+        rotZ.m00 = (float) Math.cos(rz);
+        rotZ.m01 = -(float) Math.sin(rz);
+        rotZ.m10 = (float) Math.sin(rz);
+        rotZ.m11 = (float) Math.cos(rz);
+
+        // Комбинируем: сначала Z, потом Y, потом X
+        Matrix4f result = new Matrix4f(rotZ);
+        result.mul(rotY);
+        result.mul(rotX);
+        return result;
+    }
+
+    public static Matrix4f createScaleMatrix(Vector3f scale) {
+        Matrix4f result = new Matrix4f();
+        result.setIdentity();
+        result.m00 = scale.x;
+        result.m11 = scale.y;
+        result.m22 = scale.z;
+        return result;
+    }
+
+    public static Matrix4f createModelMatrix(Vector3f position, Vector3f rotation, Vector3f scale) {
+        // Порядок: Scale -> Rotation -> Translation
+        Matrix4f scaleMatrix = createScaleMatrix(scale);
+        Matrix4f rotationMatrix = createRotationMatrix(rotation);
+        Matrix4f translationMatrix = createTranslationMatrix(position);
+
+        Matrix4f result = new Matrix4f(translationMatrix);
+        result.mul(rotationMatrix);
+        result.mul(scaleMatrix);
+        return result;
+    }
+
     public static Matrix4f lookAt(Vector3f eye, Vector3f target) {
         return lookAt(eye, target, new Vector3f(0F, 1.0F, 0F));
     }
