@@ -695,13 +695,10 @@ public class GuiController {
 
     private void handleScroll(ScrollEvent event) {
         double deltaY = event.getDeltaY();
-        Vector3f direction = new Vector3f();
-        direction.sub(camera.getTarget(), camera.getPosition());
-        direction.normalize();
-        direction.scale((float) (deltaY * ZOOM_SENSITIVITY * 0.01));
+        Vector3f direction = camera.getTarget().subtract(camera.getPosition()).normalize();
+        direction = direction.multiply((float) (deltaY * ZOOM_SENSITIVITY * 0.01));
         
-        Vector3f newPosition = new Vector3f(camera.getPosition());
-        newPosition.add(direction);
+        Vector3f newPosition = camera.getPosition().add(direction);
         camera.setPosition(newPosition);
     }
 
@@ -710,8 +707,7 @@ public class GuiController {
         Vector3f target = camera.getTarget();
 
         // Calculate camera offset from target
-        Vector3f offset = new Vector3f();
-        offset.sub(position, target);
+        Vector3f offset = position.subtract(target);
 
         // Calculate spherical coordinates
         float radius = offset.length();
@@ -728,51 +724,40 @@ public class GuiController {
         float newZ = radius * (float) (Math.sin(phi) * Math.cos(theta));
 
         Vector3f newOffset = new Vector3f(newX, newY, newZ);
-        Vector3f newPosition = new Vector3f(target);
-        newPosition.add(newOffset);
+        Vector3f newPosition = target.add(newOffset);
 
         camera.setPosition(newPosition);
     }
 
     @FXML
     public void handleCameraForward(ActionEvent actionEvent) {
-        Vector3f direction = new Vector3f();
-        direction.sub(camera.getTarget(), camera.getPosition());
-        direction.normalize();
-        direction.scale(TRANSLATION);
+        Vector3f direction = camera.getTarget().subtract(camera.getPosition()).normalize();
+        direction = direction.multiply(TRANSLATION);
         camera.movePosition(direction);
     }
 
     @FXML
     public void handleCameraBackward(ActionEvent actionEvent) {
-        Vector3f direction = new Vector3f();
-        direction.sub(camera.getPosition(), camera.getTarget());
-        direction.normalize();
-        direction.scale(TRANSLATION);
+        Vector3f direction = camera.getPosition().subtract(camera.getTarget()).normalize();
+        direction = direction.multiply(TRANSLATION);
         camera.movePosition(direction);
     }
 
     @FXML
     public void handleCameraLeft(ActionEvent actionEvent) {
-        Vector3f forward = new Vector3f();
-        forward.sub(camera.getTarget(), camera.getPosition());
+        Vector3f forward = camera.getTarget().subtract(camera.getPosition());
         Vector3f up = new Vector3f(0, 1, 0);
-        Vector3f right = new Vector3f();
-        right.cross(forward, up);
-        right.normalize();
-        right.scale(-TRANSLATION);
+        Vector3f right = forward.cross(up).normalize();
+        right = right.multiply(-TRANSLATION);
         camera.movePosition(right);
     }
 
     @FXML
     public void handleCameraRight(ActionEvent actionEvent) {
-        Vector3f forward = new Vector3f();
-        forward.sub(camera.getTarget(), camera.getPosition());
+        Vector3f forward = camera.getTarget().subtract(camera.getPosition());
         Vector3f up = new Vector3f(0, 1, 0);
-        Vector3f right = new Vector3f();
-        right.cross(forward, up);
-        right.normalize();
-        right.scale(TRANSLATION);
+        Vector3f right = forward.cross(up).normalize();
+        right = right.multiply(TRANSLATION);
         camera.movePosition(right);
     }
 

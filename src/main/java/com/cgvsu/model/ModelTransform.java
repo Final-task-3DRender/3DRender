@@ -1,6 +1,6 @@
 package com.cgvsu.model;
 
-import javax.vecmath.Vector3f;
+import com.cgvsu.math.Vector3f;
 
 /**
  * Класс для хранения трансформаций модели (позиция, вращение, масштаб)
@@ -27,11 +27,11 @@ public class ModelTransform {
     }
 
     public void setPosition(Vector3f position) {
-        this.position.set(position);
+        this.position = new Vector3f(position);
     }
 
     public void translate(Vector3f translation) {
-        this.position.add(translation);
+        this.position = this.position.add(translation);
     }
 
     public Vector3f getRotation() {
@@ -39,11 +39,11 @@ public class ModelTransform {
     }
 
     public void setRotation(Vector3f rotation) {
-        this.rotation.set(rotation);
+        this.rotation = new Vector3f(rotation);
     }
 
     public void rotate(Vector3f rotation) {
-        this.rotation.add(rotation);
+        this.rotation = this.rotation.add(rotation);
     }
 
     public Vector3f getScale() {
@@ -51,19 +51,21 @@ public class ModelTransform {
     }
 
     public void setScale(Vector3f scale) {
-        this.scale.set(scale);
+        this.scale = new Vector3f(scale);
     }
 
     public void scale(Vector3f scale) {
-        this.scale.x *= scale.x;
-        this.scale.y *= scale.y;
-        this.scale.z *= scale.z;
+        this.scale = new Vector3f(
+                this.scale.x * scale.x,
+                this.scale.y * scale.y,
+                this.scale.z * scale.z
+        );
     }
 
     public void reset() {
-        position.set(0, 0, 0);
-        rotation.set(0, 0, 0);
-        scale.set(1, 1, 1);
+        this.position = new Vector3f(0, 0, 0);
+        this.rotation = new Vector3f(0, 0, 0);
+        this.scale = new Vector3f(1, 1, 1);
     }
 }
 
