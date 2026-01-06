@@ -32,14 +32,11 @@ import com.cgvsu.model.ModelTransform;
 import com.cgvsu.objreader.ObjReader;
 import com.cgvsu.objwriter.ObjWriter;
 import com.cgvsu.render_engine.Camera;
+import com.cgvsu.render_engine.CameraController;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Button;
 
 public class GuiController {
-
-    final private float TRANSLATION = 0.5F;
-    final private float ROTATION_SENSITIVITY = 0.01F;
-    final private float ZOOM_SENSITIVITY = 5.0F;
     
     private Vector3f initialCameraPosition = new Vector3f(0, 0, 100);
     private Vector3f initialCameraTarget = new Vector3f(0, 0, 0);
@@ -135,13 +132,10 @@ public class GuiController {
             new Vector3f(initialCameraPosition),
             new Vector3f(initialCameraTarget),
             1.0F, 1, 0.01F, 100);
+    
+    private CameraController cameraController;
 
     private Timeline timeline;
-
-    // Mouse drag state
-    private double lastMouseX = 0;
-    private double lastMouseY = 0;
-    private boolean isMousePressed = false;
 
     @FXML
     private void initialize() {
@@ -188,6 +182,9 @@ public class GuiController {
 
         // Setup transform UI
         setupTransformUI();
+        
+        // Initialize camera controller
+        cameraController = new CameraController(camera, initialCameraPosition, initialCameraTarget);
 
         updateStatusBar();
         updateTransformUI();
@@ -620,35 +617,41 @@ public class GuiController {
 
     @FXML
     private void handleResetCamera() {
-        camera.setPosition(new Vector3f(initialCameraPosition));
-        camera.setTarget(new Vector3f(initialCameraTarget));
+        if (cameraController != null) {
+            cameraController.reset();
+        } else {
+            camera.setPosition(new Vector3f(initialCameraPosition));
+            camera.setTarget(new Vector3f(initialCameraTarget));
+        }
         updateStatusBar();
     }
 
     private void handleKeyPressed(KeyEvent event) {
+        if (cameraController == null) return;
+        
         KeyCode code = event.getCode();
         switch (code) {
             case UP:
             case W:
-                handleCameraForward(null);
+                cameraController.moveForward();
                 break;
             case DOWN:
             case S:
-                handleCameraBackward(null);
+                cameraController.moveBackward();
                 break;
             case LEFT:
             case A:
-                handleCameraLeft(null);
+                cameraController.moveLeft();
                 break;
             case RIGHT:
             case D:
-                handleCameraRight(null);
+                cameraController.moveRight();
                 break;
             case SPACE:
-                handleCameraUp(null);
+                cameraController.moveUp();
                 break;
             case SHIFT:
-                handleCameraDown(null);
+                cameraController.moveDown();
                 break;
             case R:
                 handleResetCamera();
@@ -670,105 +673,69 @@ public class GuiController {
     }
 
     private void handleMousePressed(MouseEvent event) {
-        if (event.isPrimaryButtonDown()) {
-            lastMouseX = event.getX();
-            lastMouseY = event.getY();
-            isMousePressed = true;
+        if (cameraController != null && event.isPrimaryButtonDown()) {
+            cameraController.onMousePressed(event.getX(), event.getY());
         }
     }
 
     private void handleMouseDragged(MouseEvent event) {
-        if (isMousePressed && event.isPrimaryButtonDown()) {
-            double deltaX = event.getX() - lastMouseX;
-            double deltaY = event.getY() - lastMouseY;
-
-            rotateCameraAroundTarget((float) deltaX * ROTATION_SENSITIVITY, (float) deltaY * ROTATION_SENSITIVITY);
-
-            lastMouseX = event.getX();
-            lastMouseY = event.getY();
+        if (cameraController != null && event.isPrimaryButtonDown()) {
+            cameraController.onMouseDragged(event.getX(), event.getY());
         }
     }
 
     private void handleMouseReleased(MouseEvent event) {
-        isMousePressed = false;
+        if (cameraController != null) {
+            cameraController.onMouseReleased();
+        }
     }
 
     private void handleScroll(ScrollEvent event) {
-        double deltaY = event.getDeltaY();
-        Vector3f direction = camera.getTarget().subtract(camera.getPosition()).normalize();
-        direction = direction.multiply((float) (deltaY * ZOOM_SENSITIVITY * 0.01));
-        
-        Vector3f newPosition = camera.getPosition().add(direction);
-        camera.setPosition(newPosition);
-    }
-
-    private void rotateCameraAroundTarget(float deltaX, float deltaY) {
-        Vector3f position = camera.getPosition();
-        Vector3f target = camera.getTarget();
-
-        // Calculate camera offset from target
-        Vector3f offset = position.subtract(target);
-
-        // Calculate spherical coordinates
-        float radius = offset.length();
-        float theta = (float) Math.atan2(offset.x, offset.z); // Horizontal angle
-        float phi = (float) Math.acos(offset.y / radius); // Vertical angle
-
-        // Update angles
-        theta += deltaX;
-        phi = Math.max(0.01f, Math.min((float) Math.PI - 0.01f, phi - deltaY));
-
-        // Convert back to Cartesian coordinates
-        float newX = radius * (float) (Math.sin(phi) * Math.sin(theta));
-        float newY = radius * (float) Math.cos(phi);
-        float newZ = radius * (float) (Math.sin(phi) * Math.cos(theta));
-
-        Vector3f newOffset = new Vector3f(newX, newY, newZ);
-        Vector3f newPosition = target.add(newOffset);
-
-        camera.setPosition(newPosition);
+        if (cameraController != null) {
+            cameraController.onMouseScroll(event.getDeltaY());
+        }
     }
 
     @FXML
     public void handleCameraForward(ActionEvent actionEvent) {
-        Vector3f direction = camera.getTarget().subtract(camera.getPosition()).normalize();
-        direction = direction.multiply(TRANSLATION);
-        camera.movePosition(direction);
+        if (cameraController != null) {
+            cameraController.moveForward();
+        }
     }
 
     @FXML
     public void handleCameraBackward(ActionEvent actionEvent) {
-        Vector3f direction = camera.getPosition().subtract(camera.getTarget()).normalize();
-        direction = direction.multiply(TRANSLATION);
-        camera.movePosition(direction);
+        if (cameraController != null) {
+            cameraController.moveBackward();
+        }
     }
 
     @FXML
     public void handleCameraLeft(ActionEvent actionEvent) {
-        Vector3f forward = camera.getTarget().subtract(camera.getPosition());
-        Vector3f up = new Vector3f(0, 1, 0);
-        Vector3f right = forward.cross(up).normalize();
-        right = right.multiply(-TRANSLATION);
-        camera.movePosition(right);
+        if (cameraController != null) {
+            cameraController.moveLeft();
+        }
     }
 
     @FXML
     public void handleCameraRight(ActionEvent actionEvent) {
-        Vector3f forward = camera.getTarget().subtract(camera.getPosition());
-        Vector3f up = new Vector3f(0, 1, 0);
-        Vector3f right = forward.cross(up).normalize();
-        right = right.multiply(TRANSLATION);
-        camera.movePosition(right);
+        if (cameraController != null) {
+            cameraController.moveRight();
+        }
     }
 
     @FXML
     public void handleCameraUp(ActionEvent actionEvent) {
-        camera.movePosition(new Vector3f(0, TRANSLATION, 0));
+        if (cameraController != null) {
+            cameraController.moveUp();
+        }
     }
 
     @FXML
     public void handleCameraDown(ActionEvent actionEvent) {
-        camera.movePosition(new Vector3f(0, -TRANSLATION, 0));
+        if (cameraController != null) {
+            cameraController.moveDown();
+        }
     }
 
     private void showError(String title, String message) {

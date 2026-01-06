@@ -1,0 +1,377 @@
+package com.cgvsu.render_engine;
+
+import com.cgvsu.math.Vector3f;
+
+/**
+ * Контроллер для управления камерой.
+ * Инкапсулирует всю логику движения, поворота и зума камеры.
+ * 
+ * Поддерживает:
+ * - Движение камеры в 6 направлениях (вперед/назад, влево/вправо, вверх/вниз)
+ * - Поворот камеры вокруг цели с помощью мыши
+ * - Зум камеры (приближение/отдаление)
+ * - Сброс камеры в начальное положение
+ * - Настраиваемые параметры чувствительности
+ */
+public class CameraController {
+    
+    private final Camera camera;
+    
+    // Начальные значения для сброса
+    private final Vector3f initialPosition;
+    private final Vector3f initialTarget;
+    
+    // Параметры управления
+    private float translationSpeed = 0.5f;
+    private float rotationSensitivity = 0.01f;
+    private float zoomSensitivity = 5.0f;
+    
+    // Состояние для управления мышью
+    private double lastMouseX = 0;
+    private double lastMouseY = 0;
+    private boolean isMousePressed = false;
+    
+    /**
+     * Создает контроллер для управления камерой
+     * 
+     * @param camera камера для управления
+     * @param initialPosition начальная позиция камеры
+     * @param initialTarget начальная цель камеры
+     */
+    public CameraController(Camera camera, Vector3f initialPosition, Vector3f initialTarget) {
+        if (camera == null) {
+            throw new IllegalArgumentException("Camera не может быть null");
+        }
+        if (initialPosition == null || initialTarget == null) {
+            throw new IllegalArgumentException("Initial position и target не могут быть null");
+        }
+        
+        this.camera = camera;
+        this.initialPosition = new Vector3f(initialPosition);
+        this.initialTarget = new Vector3f(initialTarget);
+    }
+    
+    /**
+     * Создает контроллер с камерой и устанавливает начальные значения из самой камеры
+     * 
+     * @param camera камера для управления
+     */
+    public CameraController(Camera camera) {
+        if (camera == null) {
+            throw new IllegalArgumentException("Camera не может быть null");
+        }
+        
+        this.camera = camera;
+        this.initialPosition = new Vector3f(camera.getPosition());
+        this.initialTarget = new Vector3f(camera.getTarget());
+    }
+    
+    // ========== Настройка параметров ==========
+    
+    /**
+     * Устанавливает скорость движения камеры
+     * 
+     * @param speed скорость движения (по умолчанию 0.5)
+     */
+    public void setTranslationSpeed(float speed) {
+        this.translationSpeed = speed;
+    }
+    
+    /**
+     * Устанавливает чувствительность поворота камеры
+     * 
+     * @param sensitivity чувствительность (по умолчанию 0.01)
+     */
+    public void setRotationSensitivity(float sensitivity) {
+        this.rotationSensitivity = sensitivity;
+    }
+    
+    /**
+     * Устанавливает чувствительность зума камеры
+     * 
+     * @param sensitivity чувствительность (по умолчанию 5.0)
+     */
+    public void setZoomSensitivity(float sensitivity) {
+        this.zoomSensitivity = sensitivity;
+    }
+    
+    /**
+     * Получить скорость движения
+     */
+    public float getTranslationSpeed() {
+        return translationSpeed;
+    }
+    
+    /**
+     * Получить чувствительность поворота
+     */
+    public float getRotationSensitivity() {
+        return rotationSensitivity;
+    }
+    
+    /**
+     * Получить чувствительность зума
+     */
+    public float getZoomSensitivity() {
+        return zoomSensitivity;
+    }
+    
+    // ========== Движение камеры ==========
+    
+    /**
+     * Движение камеры вперед (к цели)
+     */
+    public void moveForward() {
+        Vector3f direction = camera.getTarget().subtract(camera.getPosition()).normalize();
+        direction = direction.multiply(translationSpeed);
+        camera.movePosition(direction);
+    }
+    
+    /**
+     * Движение камеры назад (от цели)
+     */
+    public void moveBackward() {
+        Vector3f direction = camera.getPosition().subtract(camera.getTarget()).normalize();
+        direction = direction.multiply(translationSpeed);
+        camera.movePosition(direction);
+    }
+    
+    /**
+     * Движение камеры влево
+     */
+    public void moveLeft() {
+        Vector3f forward = camera.getTarget().subtract(camera.getPosition());
+        Vector3f up = new Vector3f(0, 1, 0);
+        Vector3f right = forward.cross(up).normalize();
+        right = right.multiply(-translationSpeed);
+        camera.movePosition(right);
+    }
+    
+    /**
+     * Движение камеры вправо
+     */
+    public void moveRight() {
+        Vector3f forward = camera.getTarget().subtract(camera.getPosition());
+        Vector3f up = new Vector3f(0, 1, 0);
+        Vector3f right = forward.cross(up).normalize();
+        right = right.multiply(translationSpeed);
+        camera.movePosition(right);
+    }
+    
+    /**
+     * Движение камеры вверх
+     */
+    public void moveUp() {
+        camera.movePosition(new Vector3f(0, translationSpeed, 0));
+    }
+    
+    /**
+     * Движение камеры вниз
+     */
+    public void moveDown() {
+        camera.movePosition(new Vector3f(0, -translationSpeed, 0));
+    }
+    
+    /**
+     * Движение камеры в заданном направлении
+     * 
+     * @param direction направление движения (будет нормализовано)
+     */
+    public void moveInDirection(Vector3f direction) {
+        if (direction == null) {
+            throw new IllegalArgumentException("Direction не может быть null");
+        }
+        Vector3f normalized = direction.normalize();
+        normalized = normalized.multiply(translationSpeed);
+        camera.movePosition(normalized);
+    }
+    
+    // ========== Поворот камеры ==========
+    
+    /**
+     * Поворот камеры вокруг цели
+     * Используется для управления мышью
+     * 
+     * @param deltaX изменение по X (в пикселях)
+     * @param deltaY изменение по Y (в пикселях)
+     */
+    public void rotateAroundTarget(double deltaX, double deltaY) {
+        rotateAroundTarget((float) deltaX * rotationSensitivity, (float) deltaY * rotationSensitivity);
+    }
+    
+    /**
+     * Поворот камеры вокруг цели
+     * 
+     * @param deltaX изменение угла по X (в радианах)
+     * @param deltaY изменение угла по Y (в радианах)
+     */
+    public void rotateAroundTarget(float deltaX, float deltaY) {
+        Vector3f position = camera.getPosition();
+        Vector3f target = camera.getTarget();
+        
+        // Вычисляем смещение камеры от цели
+        Vector3f offset = position.subtract(target);
+        
+        // Преобразуем в сферические координаты
+        float radius = offset.length();
+        if (radius < 1e-6f) {
+            // Если камера слишком близко к цели, не поворачиваем
+            return;
+        }
+        
+        float theta = (float) Math.atan2(offset.x, offset.z); // Горизонтальный угол
+        float phi = (float) Math.acos(offset.y / radius); // Вертикальный угол
+        
+        // Обновляем углы
+        theta += deltaX;
+        phi = Math.max(0.01f, Math.min((float) Math.PI - 0.01f, phi - deltaY));
+        
+        // Преобразуем обратно в декартовы координаты
+        float newX = radius * (float) (Math.sin(phi) * Math.sin(theta));
+        float newY = radius * (float) Math.cos(phi);
+        float newZ = radius * (float) (Math.sin(phi) * Math.cos(theta));
+        
+        Vector3f newOffset = new Vector3f(newX, newY, newZ);
+        Vector3f newPosition = target.add(newOffset);
+        
+        camera.setPosition(newPosition);
+    }
+    
+    // ========== Зум камеры ==========
+    
+    /**
+     * Приближение/отдаление камеры (зум)
+     * 
+     * @param delta изменение зума (положительное - приближение, отрицательное - отдаление)
+     */
+    public void zoom(double delta) {
+        Vector3f direction = camera.getTarget().subtract(camera.getPosition()).normalize();
+        direction = direction.multiply((float) (delta * zoomSensitivity * 0.01));
+        
+        Vector3f newPosition = camera.getPosition().add(direction);
+        camera.setPosition(newPosition);
+    }
+    
+    /**
+     * Приближение камеры
+     */
+    public void zoomIn() {
+        zoom(1.0);
+    }
+    
+    /**
+     * Отдаление камеры
+     */
+    public void zoomOut() {
+        zoom(-1.0);
+    }
+    
+    // ========== Сброс камеры ==========
+    
+    /**
+     * Сбрасывает камеру в начальное положение
+     */
+    public void reset() {
+        camera.setPosition(new Vector3f(initialPosition));
+        camera.setTarget(new Vector3f(initialTarget));
+    }
+    
+    /**
+     * Устанавливает новые начальные значения для сброса
+     * 
+     * @param position новая начальная позиция
+     * @param target новая начальная цель
+     */
+    public void setInitialValues(Vector3f position, Vector3f target) {
+        if (position == null || target == null) {
+            throw new IllegalArgumentException("Position и target не могут быть null");
+        }
+        this.initialPosition.x = position.x;
+        this.initialPosition.y = position.y;
+        this.initialPosition.z = position.z;
+        this.initialTarget.x = target.x;
+        this.initialTarget.y = target.y;
+        this.initialTarget.z = target.z;
+    }
+    
+    // ========== Управление состоянием мыши (для JavaFX) ==========
+    
+    /**
+     * Обработка нажатия мыши
+     * Сохраняет позицию мыши для последующего поворота
+     * 
+     * @param mouseX координата X мыши
+     * @param mouseY координата Y мыши
+     */
+    public void onMousePressed(double mouseX, double mouseY) {
+        this.lastMouseX = mouseX;
+        this.lastMouseY = mouseY;
+        this.isMousePressed = true;
+    }
+    
+    /**
+     * Обработка перетаскивания мыши
+     * Поворачивает камеру вокруг цели
+     * 
+     * @param mouseX текущая координата X мыши
+     * @param mouseY текущая координата Y мыши
+     */
+    public void onMouseDragged(double mouseX, double mouseY) {
+        if (isMousePressed) {
+            double deltaX = mouseX - lastMouseX;
+            double deltaY = mouseY - lastMouseY;
+            
+            rotateAroundTarget(deltaX, deltaY);
+            
+            lastMouseX = mouseX;
+            lastMouseY = mouseY;
+        }
+    }
+    
+    /**
+     * Обработка отпускания мыши
+     */
+    public void onMouseReleased() {
+        isMousePressed = false;
+    }
+    
+    /**
+     * Обработка прокрутки колесика мыши
+     * 
+     * @param deltaY изменение прокрутки (положительное - вверх, отрицательное - вниз)
+     */
+    public void onMouseScroll(double deltaY) {
+        zoom(deltaY);
+    }
+    
+    // ========== Геттеры ==========
+    
+    /**
+     * Получить управляемую камеру
+     */
+    public Camera getCamera() {
+        return camera;
+    }
+    
+    /**
+     * Получить начальную позицию
+     */
+    public Vector3f getInitialPosition() {
+        return new Vector3f(initialPosition);
+    }
+    
+    /**
+     * Получить начальную цель
+     */
+    public Vector3f getInitialTarget() {
+        return new Vector3f(initialTarget);
+    }
+    
+    /**
+     * Проверка, нажата ли кнопка мыши
+     */
+    public boolean isMousePressed() {
+        return isMousePressed;
+    }
+}
+
