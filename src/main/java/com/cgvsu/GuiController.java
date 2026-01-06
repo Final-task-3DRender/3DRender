@@ -26,6 +26,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.IOException;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.cgvsu.math.Vector3f;
 import com.cgvsu.model.Model;
 import com.cgvsu.model.ModelTransform;
@@ -35,6 +38,10 @@ import com.cgvsu.render_engine.Camera;
 import com.cgvsu.render_engine.CameraController;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Button;
+import javafx.scene.control.ListView;
+import javafx.scene.control.CheckBox;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 public class GuiController {
     
@@ -112,9 +119,30 @@ public class GuiController {
     @FXML
     private Label sceneModelInfoLabel, scenePositionLabel, sceneRotationLabel, sceneScaleLabel;
 
-    private Model mesh = null;
-    private String loadedFileName = null;
-    private ModelTransform modelTransform = new ModelTransform();
+    // Scene models management
+    private static class SceneModel {
+        private final Model model;
+        private final ModelTransform transform;
+        private final String name;
+        private boolean active;
+
+        private SceneModel(Model model, String name) {
+            this.model = model;
+            this.transform = new ModelTransform();
+            this.name = name;
+            this.active = true;
+        }
+    }
+
+    @FXML
+    private ListView<String> modelsListView;
+
+    @FXML
+    private CheckBox modelActiveCheckBox;
+
+    private final List<SceneModel> sceneModels = new ArrayList<>();
+    private final ObservableList<String> modelNames = FXCollections.observableArrayList();
+    private int selectedModelIndex = -1;
 
     private enum TransformMode { MOVE, ROTATE, SCALE }
     private TransformMode currentMode = TransformMode.MOVE;
@@ -160,8 +188,19 @@ public class GuiController {
             canvas.getGraphicsContext2D().clearRect(0, 0, width, height);
             camera.setAspectRatio((float) (width / height));
 
-            if (mesh != null) {
-                RenderEngine.render(canvas.getGraphicsContext2D(), camera, mesh, modelTransform, (int) width, (int) height);
+            if (!sceneModels.isEmpty()) {
+                for (SceneModel sceneModel : sceneModels) {
+                    if (sceneModel != null && sceneModel.active) {
+                        RenderEngine.render(
+                                canvas.getGraphicsContext2D(),
+                                camera,
+                                sceneModel.model,
+                                sceneModel.transform,
+                                (int) width,
+                                (int) height
+                        );
+                    }
+                }
             }
 
             updateStatusBar();
@@ -173,7 +212,8 @@ public class GuiController {
         setupMenuAccelerators();
 
         setupTransformUI();
-        
+        setupSceneModelsUI();
+
         // Initialize camera controller
         cameraController = new CameraController(camera, initialCameraPosition, initialCameraTarget);
 
@@ -185,7 +225,10 @@ public class GuiController {
         setupTextField(positionXField, () -> {
             try {
                 float value = Float.parseFloat(positionXField.getText());
-                modelTransform.setPosition(new Vector3f(value, modelTransform.getPosition().y, modelTransform.getPosition().z));
+                ModelTransform modelTransform = getCurrentTransform();
+                if (modelTransform != null) {
+                    modelTransform.setPosition(new Vector3f(value, modelTransform.getPosition().y, modelTransform.getPosition().z));
+                }
                 updateTransformUI();
             } catch (NumberFormatException e) {
                 updateTransformFields();
@@ -194,7 +237,10 @@ public class GuiController {
         setupTextField(positionYField, () -> {
             try {
                 float value = Float.parseFloat(positionYField.getText());
-                modelTransform.setPosition(new Vector3f(modelTransform.getPosition().x, value, modelTransform.getPosition().z));
+                ModelTransform modelTransform = getCurrentTransform();
+                if (modelTransform != null) {
+                    modelTransform.setPosition(new Vector3f(modelTransform.getPosition().x, value, modelTransform.getPosition().z));
+                }
                 updateTransformUI();
             } catch (NumberFormatException e) {
                 updateTransformFields();
@@ -203,7 +249,10 @@ public class GuiController {
         setupTextField(positionZField, () -> {
             try {
                 float value = Float.parseFloat(positionZField.getText());
-                modelTransform.setPosition(new Vector3f(modelTransform.getPosition().x, modelTransform.getPosition().y, value));
+                ModelTransform modelTransform = getCurrentTransform();
+                if (modelTransform != null) {
+                    modelTransform.setPosition(new Vector3f(modelTransform.getPosition().x, modelTransform.getPosition().y, value));
+                }
                 updateTransformUI();
             } catch (NumberFormatException e) {
                 updateTransformFields();
@@ -213,7 +262,10 @@ public class GuiController {
         setupTextField(rotationXField, () -> {
             try {
                 float value = Float.parseFloat(rotationXField.getText());
-                modelTransform.setRotation(new Vector3f(value, modelTransform.getRotation().y, modelTransform.getRotation().z));
+                ModelTransform modelTransform = getCurrentTransform();
+                if (modelTransform != null) {
+                    modelTransform.setRotation(new Vector3f(value, modelTransform.getRotation().y, modelTransform.getRotation().z));
+                }
                 updateTransformUI();
             } catch (NumberFormatException e) {
                 updateTransformFields();
@@ -222,7 +274,10 @@ public class GuiController {
         setupTextField(rotationYField, () -> {
             try {
                 float value = Float.parseFloat(rotationYField.getText());
-                modelTransform.setRotation(new Vector3f(modelTransform.getRotation().x, value, modelTransform.getRotation().z));
+                ModelTransform modelTransform = getCurrentTransform();
+                if (modelTransform != null) {
+                    modelTransform.setRotation(new Vector3f(modelTransform.getRotation().x, value, modelTransform.getRotation().z));
+                }
                 updateTransformUI();
             } catch (NumberFormatException e) {
                 updateTransformFields();
@@ -231,7 +286,10 @@ public class GuiController {
         setupTextField(rotationZField, () -> {
             try {
                 float value = Float.parseFloat(rotationZField.getText());
-                modelTransform.setRotation(new Vector3f(modelTransform.getRotation().x, modelTransform.getRotation().y, value));
+                ModelTransform modelTransform = getCurrentTransform();
+                if (modelTransform != null) {
+                    modelTransform.setRotation(new Vector3f(modelTransform.getRotation().x, modelTransform.getRotation().y, value));
+                }
                 updateTransformUI();
             } catch (NumberFormatException e) {
                 updateTransformFields();
@@ -242,7 +300,10 @@ public class GuiController {
             try {
                 float value = Float.parseFloat(scaleXField.getText());
                 if (value > 0) {
-                    modelTransform.setScale(new Vector3f(value, modelTransform.getScale().y, modelTransform.getScale().z));
+                    ModelTransform modelTransform = getCurrentTransform();
+                    if (modelTransform != null) {
+                        modelTransform.setScale(new Vector3f(value, modelTransform.getScale().y, modelTransform.getScale().z));
+                    }
                     updateTransformUI();
                 }
             } catch (NumberFormatException e) {
@@ -253,7 +314,10 @@ public class GuiController {
             try {
                 float value = Float.parseFloat(scaleYField.getText());
                 if (value > 0) {
-                    modelTransform.setScale(new Vector3f(modelTransform.getScale().x, value, modelTransform.getScale().z));
+                    ModelTransform modelTransform = getCurrentTransform();
+                    if (modelTransform != null) {
+                        modelTransform.setScale(new Vector3f(modelTransform.getScale().x, value, modelTransform.getScale().z));
+                    }
                     updateTransformUI();
                 }
             } catch (NumberFormatException e) {
@@ -264,7 +328,10 @@ public class GuiController {
             try {
                 float value = Float.parseFloat(scaleZField.getText());
                 if (value > 0) {
-                    modelTransform.setScale(new Vector3f(modelTransform.getScale().x, modelTransform.getScale().y, value));
+                    ModelTransform modelTransform = getCurrentTransform();
+                    if (modelTransform != null) {
+                        modelTransform.setScale(new Vector3f(modelTransform.getScale().x, modelTransform.getScale().y, value));
+                    }
                     updateTransformUI();
                 }
             } catch (NumberFormatException e) {
@@ -306,43 +373,69 @@ public class GuiController {
         }
     }
 
+    private ModelTransform getCurrentTransform() {
+        SceneModel current = getSelectedSceneModel();
+        return current != null ? current.transform : null;
+    }
+
+    private SceneModel getSelectedSceneModel() {
+        if (selectedModelIndex < 0 || selectedModelIndex >= sceneModels.size()) {
+            return null;
+        }
+        return sceneModels.get(selectedModelIndex);
+    }
+
     private void adjustPositionX(float delta) {
+        ModelTransform modelTransform = getCurrentTransform();
+        if (modelTransform == null) return;
         Vector3f pos = modelTransform.getPosition();
         modelTransform.setPosition(new Vector3f(pos.x + delta, pos.y, pos.z));
         updateTransformUI();
     }
 
     private void adjustPositionY(float delta) {
+        ModelTransform modelTransform = getCurrentTransform();
+        if (modelTransform == null) return;
         Vector3f pos = modelTransform.getPosition();
         modelTransform.setPosition(new Vector3f(pos.x, pos.y + delta, pos.z));
         updateTransformUI();
     }
 
     private void adjustPositionZ(float delta) {
+        ModelTransform modelTransform = getCurrentTransform();
+        if (modelTransform == null) return;
         Vector3f pos = modelTransform.getPosition();
         modelTransform.setPosition(new Vector3f(pos.x, pos.y, pos.z + delta));
         updateTransformUI();
     }
 
     private void adjustRotationX(float delta) {
+        ModelTransform modelTransform = getCurrentTransform();
+        if (modelTransform == null) return;
         Vector3f rot = modelTransform.getRotation();
         modelTransform.setRotation(new Vector3f(rot.x + delta, rot.y, rot.z));
         updateTransformUI();
     }
 
     private void adjustRotationY(float delta) {
+        ModelTransform modelTransform = getCurrentTransform();
+        if (modelTransform == null) return;
         Vector3f rot = modelTransform.getRotation();
         modelTransform.setRotation(new Vector3f(rot.x, rot.y + delta, rot.z));
         updateTransformUI();
     }
 
     private void adjustRotationZ(float delta) {
+        ModelTransform modelTransform = getCurrentTransform();
+        if (modelTransform == null) return;
         Vector3f rot = modelTransform.getRotation();
         modelTransform.setRotation(new Vector3f(rot.x, rot.y, rot.z + delta));
         updateTransformUI();
     }
 
     private void adjustScaleX(float delta) {
+        ModelTransform modelTransform = getCurrentTransform();
+        if (modelTransform == null) return;
         Vector3f scale = modelTransform.getScale();
         float newValue = Math.max(0.01f, scale.x + delta);
         modelTransform.setScale(new Vector3f(newValue, scale.y, scale.z));
@@ -350,6 +443,8 @@ public class GuiController {
     }
 
     private void adjustScaleY(float delta) {
+        ModelTransform modelTransform = getCurrentTransform();
+        if (modelTransform == null) return;
         Vector3f scale = modelTransform.getScale();
         float newValue = Math.max(0.01f, scale.y + delta);
         modelTransform.setScale(new Vector3f(scale.x, newValue, scale.z));
@@ -357,6 +452,8 @@ public class GuiController {
     }
 
     private void adjustScaleZ(float delta) {
+        ModelTransform modelTransform = getCurrentTransform();
+        if (modelTransform == null) return;
         Vector3f scale = modelTransform.getScale();
         float newValue = Math.max(0.01f, scale.z + delta);
         modelTransform.setScale(new Vector3f(scale.x, scale.y, newValue));
@@ -369,6 +466,20 @@ public class GuiController {
     }
 
     private void updateTransformFields() {
+        ModelTransform modelTransform = getCurrentTransform();
+        if (modelTransform == null) {
+            if (positionXField != null && !positionXField.isFocused()) positionXField.setText("");
+            if (positionYField != null && !positionYField.isFocused()) positionYField.setText("");
+            if (positionZField != null && !positionZField.isFocused()) positionZField.setText("");
+            if (rotationXField != null && !rotationXField.isFocused()) rotationXField.setText("");
+            if (rotationYField != null && !rotationYField.isFocused()) rotationYField.setText("");
+            if (rotationZField != null && !rotationZField.isFocused()) rotationZField.setText("");
+            if (scaleXField != null && !scaleXField.isFocused()) scaleXField.setText("");
+            if (scaleYField != null && !scaleYField.isFocused()) scaleYField.setText("");
+            if (scaleZField != null && !scaleZField.isFocused()) scaleZField.setText("");
+            return;
+        }
+
         Vector3f pos = modelTransform.getPosition();
         if (positionXField != null && !positionXField.isFocused()) {
             positionXField.setText(String.format("%.2f", pos.x));
@@ -404,30 +515,48 @@ public class GuiController {
     }
 
     private void updateSceneInfo() {
+        SceneModel current = getSelectedSceneModel();
+
         if (scenePositionLabel != null) {
-            Vector3f pos = modelTransform.getPosition();
-            scenePositionLabel.setText(String.format("Position: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z));
+            if (current != null) {
+                Vector3f pos = current.transform.getPosition();
+                scenePositionLabel.setText(String.format("Position: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z));
+            } else {
+                scenePositionLabel.setText("Position: —");
+            }
         }
         if (sceneRotationLabel != null) {
-            Vector3f rot = modelTransform.getRotation();
-            sceneRotationLabel.setText(String.format("Rotation: (%.1f°, %.1f°, %.1f°)", rot.x, rot.y, rot.z));
+            if (current != null) {
+                Vector3f rot = current.transform.getRotation();
+                sceneRotationLabel.setText(String.format("Rotation: (%.1f°, %.1f°, %.1f°)", rot.x, rot.y, rot.z));
+            } else {
+                sceneRotationLabel.setText("Rotation: —");
+            }
         }
         if (sceneScaleLabel != null) {
-            Vector3f scale = modelTransform.getScale();
-            sceneScaleLabel.setText(String.format("Scale: (%.2f, %.2f, %.2f)", scale.x, scale.y, scale.z));
+            if (current != null) {
+                Vector3f scale = current.transform.getScale();
+                sceneScaleLabel.setText(String.format("Scale: (%.2f, %.2f, %.2f)", scale.x, scale.y, scale.z));
+            } else {
+                sceneScaleLabel.setText("Scale: —");
+            }
         }
-        if (sceneModelInfoLabel != null && mesh != null) {
-            int vertexCount = mesh.vertices.size();
-            int polygonCount = mesh.polygons.size();
-            String fileName = loadedFileName != null ? loadedFileName : "Unknown";
-            sceneModelInfoLabel.setText(String.format("Model: %s\nVertices: %d\nPolygons: %d", fileName, vertexCount, polygonCount));
-        } else if (sceneModelInfoLabel != null) {
-            sceneModelInfoLabel.setText("No model loaded");
+        if (sceneModelInfoLabel != null) {
+            if (current != null) {
+                int vertexCount = current.model.vertices.size();
+                int polygonCount = current.model.polygons.size();
+                sceneModelInfoLabel.setText(String.format("Model: %s\nVertices: %d\nPolygons: %d",
+                        current.name, vertexCount, polygonCount));
+            } else {
+                sceneModelInfoLabel.setText("No model selected");
+            }
         }
     }
 
     @FXML
     private void handleResetTransform() {
+        ModelTransform modelTransform = getCurrentTransform();
+        if (modelTransform == null) return;
         modelTransform.reset();
         updateTransformUI();
     }
@@ -495,13 +624,18 @@ public class GuiController {
         cameraPositionLabel.setText(String.format("Camera Position: (%.1f, %.1f, %.1f)", pos.x, pos.y, pos.z));
         cameraTargetLabel.setText(String.format("Camera Target: (%.1f, %.1f, %.1f)", target.x, target.y, target.z));
 
-        if (mesh != null) {
-            int vertexCount = mesh.vertices.size();
-            int polygonCount = mesh.polygons.size();
-            String fileName = loadedFileName != null ? loadedFileName : "Unknown";
-            modelInfoLabel.setText(String.format("Model: %s | Vertices: %d | Polygons: %d", fileName, vertexCount, polygonCount));
+        SceneModel current = getSelectedSceneModel();
+        if (current != null) {
+            int vertexCount = current.model.vertices.size();
+            int polygonCount = current.model.polygons.size();
+            modelInfoLabel.setText(String.format("Model: %s | Vertices: %d | Polygons: %d",
+                    current.name, vertexCount, polygonCount));
         } else {
-            modelInfoLabel.setText("No model loaded");
+            if (sceneModels.isEmpty()) {
+                modelInfoLabel.setText("No models in scene");
+            } else {
+                modelInfoLabel.setText("No model selected");
+            }
         }
     }
 
@@ -517,12 +651,25 @@ public class GuiController {
         }
 
         Path fileName = Path.of(file.getAbsolutePath());
-        loadedFileName = file.getName();
 
         try {
             String fileContent = Files.readString(fileName);
-            mesh = ObjReader.read(fileContent);
-            modelTransform.reset(); // Reset transform when loading new model
+            Model mesh = ObjReader.read(fileContent);
+
+            SceneModel sceneModel = new SceneModel(mesh, file.getName());
+            sceneModels.add(sceneModel);
+            modelNames.add(sceneModel.name);
+
+            if (modelsListView != null && modelsListView.getItems() != modelNames) {
+                modelsListView.setItems(modelNames);
+            }
+
+            // Select newly added model
+            selectedModelIndex = sceneModels.size() - 1;
+            if (modelsListView != null) {
+                modelsListView.getSelectionModel().select(selectedModelIndex);
+            }
+
             updateStatusBar();
             updateTransformUI();
             updateSceneInfo();
@@ -536,8 +683,9 @@ public class GuiController {
 
     @FXML
     private void onSaveModelMenuItemClick() {
-        if (mesh == null) {
-            showError("No model to save", "Please load a model first.");
+        SceneModel current = getSelectedSceneModel();
+        if (current == null) {
+            showError("No model to save", "Please select a model first.");
             return;
         }
 
@@ -545,12 +693,8 @@ public class GuiController {
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model (*.obj)", "*.obj"));
         fileChooser.setTitle("Save Model");
         
-        // Set default filename if model was loaded from file
-        if (loadedFileName != null) {
-            fileChooser.setInitialFileName(loadedFileName);
-        } else {
-            fileChooser.setInitialFileName("model.obj");
-        }
+        // Set default filename to selected model name
+        fileChooser.setInitialFileName(current.name != null ? current.name : "model.obj");
 
         File file = fileChooser.showSaveDialog((Stage) canvas.getScene().getWindow());
         if (file == null) {
@@ -558,12 +702,48 @@ public class GuiController {
         }
 
         try {
-            ObjWriter.saveModel(mesh, file.getAbsolutePath());
+            ObjWriter.saveModel(current.model, file.getAbsolutePath());
             showSuccess("Model saved", "Model successfully saved to:\n" + file.getAbsolutePath());
         } catch (IOException exception) {
             showError("Error saving model", "Failed to save file: " + exception.getMessage());
         } catch (Exception exception) {
             showError("Error saving model", "Unexpected error: " + exception.getMessage());
+        }
+    }
+
+    private void setupSceneModelsUI() {
+        if (modelsListView != null) {
+            modelsListView.setItems(modelNames);
+            modelsListView.getSelectionModel().selectedIndexProperty().addListener((obs, oldVal, newVal) -> {
+                selectedModelIndex = newVal.intValue();
+                updateTransformUI();
+                updateSceneInfo();
+                updateStatusBar();
+                updateModelActiveCheckBox();
+            });
+        }
+
+        if (modelActiveCheckBox != null) {
+            modelActiveCheckBox.setOnAction(e -> {
+                SceneModel current = getSelectedSceneModel();
+                if (current != null) {
+                    current.active = modelActiveCheckBox.isSelected();
+                }
+            });
+        }
+
+        updateModelActiveCheckBox();
+    }
+
+    private void updateModelActiveCheckBox() {
+        if (modelActiveCheckBox == null) return;
+        SceneModel current = getSelectedSceneModel();
+        if (current == null) {
+            modelActiveCheckBox.setSelected(false);
+            modelActiveCheckBox.setDisable(true);
+        } else {
+            modelActiveCheckBox.setDisable(false);
+            modelActiveCheckBox.setSelected(current.active);
         }
     }
 

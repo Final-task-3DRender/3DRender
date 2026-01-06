@@ -10,6 +10,8 @@
 <?import javafx.scene.control.SeparatorMenuItem?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
@@ -113,13 +115,18 @@
     <right>
         <VBox spacing="10" style="-fx-padding: 10; -fx-background-color: #f5f5f5;" minWidth="200" prefWidth="200">
             <TitledPane text="Scene Info" expanded="true">
-                <VBox spacing="5" style="-fx-padding: 10;">
-                    <Label fx:id="sceneModelInfoLabel" text="No model loaded" wrapText="true"/>
+                <VBox spacing="8" style="-fx-padding: 10;">
+                    <Label text="Models in scene:" style="-fx-font-weight: bold;"/>
+                    <ListView fx:id="modelsListView" prefHeight="150"/>
+                    <CheckBox fx:id="modelActiveCheckBox" text="Active / Visible"/>
+                    <Separator/>
+                    <Label text="Selected model info:" style="-fx-font-weight: bold;"/>
+                    <Label fx:id="sceneModelInfoLabel" text="No model selected" wrapText="true"/>
                     <Separator/>
                     <Label text="Transform Info:" style="-fx-font-weight: bold;"/>
-                    <Label fx:id="scenePositionLabel" text="Position: (0, 0, 0)"/>
-                    <Label fx:id="sceneRotationLabel" text="Rotation: (0, 0, 0)"/>
-                    <Label fx:id="sceneScaleLabel" text="Scale: (1, 1, 1)"/>
+                    <Label fx:id="scenePositionLabel" text="Position: —"/>
+                    <Label fx:id="sceneRotationLabel" text="Rotation: —"/>
+                    <Label fx:id="sceneScaleLabel" text="Scale: —"/>
                 </VBox>
             </TitledPane>
         </VBox>
