@@ -77,7 +77,6 @@ public class GuiController {
     @FXML
     private MenuItem resetTransformMenuItem;
 
-    // Transform UI elements - Position
     @FXML
     private TextField positionXField, positionYField, positionZField;
     @FXML
@@ -87,7 +86,6 @@ public class GuiController {
     @FXML
     private Button positionZDecButton, positionZIncButton;
 
-    // Transform UI elements - Rotation
     @FXML
     private TextField rotationXField, rotationYField, rotationZField;
     @FXML
@@ -97,7 +95,6 @@ public class GuiController {
     @FXML
     private Button rotationZDecButton, rotationZIncButton;
 
-    // Transform UI elements - Scale
     @FXML
     private TextField scaleXField, scaleYField, scaleZField;
     @FXML
@@ -107,13 +104,11 @@ public class GuiController {
     @FXML
     private Button scaleZDecButton, scaleZIncButton;
 
-    // Mode buttons
     @FXML
     private Button moveModeButton, rotateModeButton, scaleModeButton;
     @FXML
     private Label currentModeLabel;
 
-    // Scene info labels
     @FXML
     private Label sceneModelInfoLabel, scenePositionLabel, sceneRotationLabel, sceneScaleLabel;
 
@@ -139,8 +134,6 @@ public class GuiController {
 
     @FXML
     private void initialize() {
-        // Bind canvas size to available space (accounting for side panels, menu, toolbar, statusbar)
-        // Left panel is ~250px, right panel is ~200px, menu+toolbar ~60px, statusbar ~25px
         canvas.widthProperty().bind(borderPane.widthProperty().subtract(450)); // Left + Right panels
         canvas.heightProperty().bind(borderPane.heightProperty().subtract(85)); // Menu + Toolbar + StatusBar
 
@@ -177,10 +170,8 @@ public class GuiController {
         timeline.getKeyFrames().add(frame);
         timeline.play();
 
-        // Setup menu accelerators
         setupMenuAccelerators();
 
-        // Setup transform UI
         setupTransformUI();
         
         // Initialize camera controller
@@ -191,7 +182,6 @@ public class GuiController {
     }
 
     private void setupTransformUI() {
-        // Setup position fields
         setupTextField(positionXField, () -> {
             try {
                 float value = Float.parseFloat(positionXField.getText());
@@ -220,7 +210,6 @@ public class GuiController {
             }
         });
 
-        // Setup rotation fields
         setupTextField(rotationXField, () -> {
             try {
                 float value = Float.parseFloat(rotationXField.getText());
@@ -249,7 +238,6 @@ public class GuiController {
             }
         });
 
-        // Setup scale fields
         setupTextField(scaleXField, () -> {
             try {
                 float value = Float.parseFloat(scaleXField.getText());
@@ -284,22 +272,18 @@ public class GuiController {
             }
         });
 
-        // Setup position buttons
         setupIncDecButtons(positionXDecButton, positionXIncButton, () -> adjustPositionX(-TRANSFORM_STEP), () -> adjustPositionX(TRANSFORM_STEP));
         setupIncDecButtons(positionYDecButton, positionYIncButton, () -> adjustPositionY(-TRANSFORM_STEP), () -> adjustPositionY(TRANSFORM_STEP));
         setupIncDecButtons(positionZDecButton, positionZIncButton, () -> adjustPositionZ(-TRANSFORM_STEP), () -> adjustPositionZ(TRANSFORM_STEP));
 
-        // Setup rotation buttons
         setupIncDecButtons(rotationXDecButton, rotationXIncButton, () -> adjustRotationX(-ROTATION_STEP), () -> adjustRotationX(ROTATION_STEP));
         setupIncDecButtons(rotationYDecButton, rotationYIncButton, () -> adjustRotationY(-ROTATION_STEP), () -> adjustRotationY(ROTATION_STEP));
         setupIncDecButtons(rotationZDecButton, rotationZIncButton, () -> adjustRotationZ(-ROTATION_STEP), () -> adjustRotationZ(ROTATION_STEP));
 
-        // Setup scale buttons
         setupIncDecButtons(scaleXDecButton, scaleXIncButton, () -> adjustScaleX(-SCALE_STEP), () -> adjustScaleX(SCALE_STEP));
         setupIncDecButtons(scaleYDecButton, scaleYIncButton, () -> adjustScaleY(-SCALE_STEP), () -> adjustScaleY(SCALE_STEP));
         setupIncDecButtons(scaleZDecButton, scaleZIncButton, () -> adjustScaleZ(-SCALE_STEP), () -> adjustScaleZ(SCALE_STEP));
 
-        // Set initial mode
         handleSetMoveMode();
     }
 
@@ -663,13 +647,12 @@ public class GuiController {
                 onExitMenuItemClick();
                 break;
             default:
-                // Other keys are ignored
                 break;
         }
     }
 
     private void handleKeyReleased(KeyEvent event) {
-        // Can be used for smooth movement if needed
+
     }
 
     private void handleMousePressed(MouseEvent event) {
