@@ -196,7 +196,8 @@ public class CameraController {
      * @param deltaY изменение по Y (в пикселях)
      */
     public void rotateAroundTarget(double deltaX, double deltaY) {
-        rotateAroundTarget((float) deltaX * rotationSensitivity, (float) deltaY * rotationSensitivity);
+        // Инвертируем deltaY, чтобы движение мыши вверх поднимало камеру
+        rotateAroundTarget((float) deltaX * rotationSensitivity, -(float) deltaY * rotationSensitivity);
     }
     
     /**
@@ -212,24 +213,42 @@ public class CameraController {
         // Вычисляем смещение камеры от цели
         Vector3f offset = position.subtract(target);
         
-        // Преобразуем в сферические координаты
+        // Вычисляем радиус (расстояние от цели до камеры)
         float radius = offset.length();
         if (radius < 1e-6f) {
-            // Если камера слишком близко к цели, не поворачиваем
-            return;
+            // Если камера слишком близко к цели, устанавливаем минимальное расстояние
+            radius = 1.0f;
+            offset = new Vector3f(0, 0, radius);
         }
         
-        float theta = (float) Math.atan2(offset.x, offset.z); // Горизонтальный угол
-        float phi = (float) Math.acos(offset.y / radius); // Вертикальный угол
+        // Преобразуем в сферические координаты
+        // theta - горизонтальный угол (азимут) в плоскости XZ
+        // phi - вертикальный угол (угол возвышения) от оси Y
+        float theta = (float) Math.atan2(offset.x, offset.z);
+        float phi = (float) Math.acos(Math.max(-1.0, Math.min(1.0, offset.y / radius)));
         
         // Обновляем углы
+        // deltaX - поворот вокруг вертикальной оси (Y)
+        // deltaY - поворот вокруг горизонтальной оси (вверх/вниз)
         theta += deltaX;
-        phi = Math.max(0.01f, Math.min((float) Math.PI - 0.01f, phi - deltaY));
+        phi += deltaY;
+        
+        // Ограничиваем phi, чтобы камера не проходила через полюса
+        phi = Math.max(0.01f, Math.min((float) Math.PI - 0.01f, phi));
         
         // Преобразуем обратно в декартовы координаты
-        float newX = radius * (float) (Math.sin(phi) * Math.sin(theta));
-        float newY = radius * (float) Math.cos(phi);
-        float newZ = radius * (float) (Math.sin(phi) * Math.cos(theta));
+        // Используем стандартную формулу для сферических координат:
+        // x = r * sin(phi) * sin(theta)
+        // y = r * cos(phi)
+        // z = r * sin(phi) * cos(theta)
+        float sinPhi = (float) Math.sin(phi);
+        float cosPhi = (float) Math.cos(phi);
+        float sinTheta = (float) Math.sin(theta);
+        float cosTheta = (float) Math.cos(theta);
+        
+        float newX = radius * sinPhi * sinTheta;
+        float newY = radius * cosPhi;
+        float newZ = radius * sinPhi * cosTheta;
         
         Vector3f newOffset = new Vector3f(newX, newY, newZ);
         Vector3f newPosition = target.add(newOffset);
@@ -241,14 +260,37 @@ public class CameraController {
     
     /**
      * Приближение/отдаление камеры (зум)
+     * Для орбитальной камеры изменяем радиус напрямую
      * 
      * @param delta изменение зума (положительное - приближение, отрицательное - отдаление)
      */
     public void zoom(double delta) {
-        Vector3f direction = camera.getTarget().subtract(camera.getPosition()).normalize();
-        direction = direction.multiply((float) (delta * zoomSensitivity * 0.01));
+        Vector3f position = camera.getPosition();
+        Vector3f target = camera.getTarget();
         
-        Vector3f newPosition = camera.getPosition().add(direction);
+        // Вычисляем текущее смещение и радиус
+        Vector3f offset = position.subtract(target);
+        float radius = offset.length();
+        
+        if (radius < 1e-6f) {
+            // Если камера слишком близко, устанавливаем минимальное расстояние
+            radius = 1.0f;
+        }
+        
+        // Изменяем радиус (положительный delta уменьшает радиус - приближение)
+        float zoomFactor = (float) (delta * zoomSensitivity * 0.01);
+        float newRadius = Math.max(0.1f, radius - zoomFactor);
+        
+        // Если радиус не изменился, выходим
+        if (Math.abs(newRadius - radius) < 1e-6f) {
+            return;
+        }
+        
+        // Нормализуем offset и умножаем на новый радиус
+        Vector3f normalizedOffset = offset.normalize();
+        Vector3f newOffset = normalizedOffset.multiply(newRadius);
+        Vector3f newPosition = target.add(newOffset);
+        
         camera.setPosition(newPosition);
     }
     

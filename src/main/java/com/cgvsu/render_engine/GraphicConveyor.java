@@ -63,27 +63,63 @@ public class GraphicConveyor {
     }
 
     public static Matrix4f lookAt(Vector3f eye, Vector3f target, Vector3f up) {
-        Vector3f z = target.subtract(eye).normalize();
-        Vector3f x = up.cross(z).normalize();
-        Vector3f y = z.cross(x).normalize();
+        // Вычисляем направление камеры (forward vector) - от камеры к цели
+        Vector3f forward = target.subtract(eye);
+        float forwardLength = forward.length();
+        if (forwardLength < 1e-6f) {
+            // Если камера находится в точке цели, возвращаем единичную матрицу
+            return Matrix4f.identity();
+        }
+        forward = forward.normalize();
+        
+        // Для левосторонней системы координат (JavaFX):
+        // Вычисляем правый вектор (right vector) = up × forward
+        Vector3f right = up.cross(forward);
+        float rightLength = right.length();
+        if (rightLength < 1e-6f) {
+            // Если forward и up коллинеарны, используем альтернативный up
+            if (Math.abs(forward.y) > 0.9f) {
+                up = new Vector3f(0, 0, 1);
+            } else {
+                up = new Vector3f(0, 1, 0);
+            }
+            right = up.cross(forward);
+            rightLength = right.length();
+            if (rightLength < 1e-6f) {
+                // Если все еще коллинеарны, используем единичную матрицу
+                return Matrix4f.identity();
+            }
+        }
+        right = right.normalize();
+        
+        // Вычисляем истинный up вектор = forward × right (для левосторонней системы)
+        Vector3f upCorrected = forward.cross(right).normalize();
 
+        // Создаем матрицу поворота (rotation matrix)
+        // В OpenGL/JavaFX используется column-major порядок, но здесь row-major
+        Matrix4f rotation = Matrix4f.identity();
+        // Первая строка - right vector (X ось камеры)
+        rotation.set(0, 0, right.x);
+        rotation.set(0, 1, right.y);
+        rotation.set(0, 2, right.z);
+        // Вторая строка - up vector (Y ось камеры)
+        rotation.set(1, 0, upCorrected.x);
+        rotation.set(1, 1, upCorrected.y);
+        rotation.set(1, 2, upCorrected.z);
+        // Третья строка - отрицательный forward vector (Z ось камеры, смотрит по -Z)
+        rotation.set(2, 0, -forward.x);
+        rotation.set(2, 1, -forward.y);
+        rotation.set(2, 2, -forward.z);
+
+        // Создаем матрицу переноса (перемещаем камеру в начало координат)
         Matrix4f translation = Matrix4f.identity();
         translation.set(0, 3, -eye.x);
         translation.set(1, 3, -eye.y);
         translation.set(2, 3, -eye.z);
 
-        Matrix4f projection = Matrix4f.identity();
-        projection.set(0, 0, x.x);
-        projection.set(1, 0, x.y);
-        projection.set(2, 0, x.z);
-        projection.set(0, 1, y.x);
-        projection.set(1, 1, y.y);
-        projection.set(2, 1, y.z);
-        projection.set(0, 2, z.x);
-        projection.set(1, 2, z.y);
-        projection.set(2, 2, z.z);
-
-        return projection.multiply(translation);
+        // Комбинируем: сначала поворот, потом перенос
+        // View = Rotation * Translation
+        return rotation.multiply(translation);
     }
 
     public static Matrix4f perspective(
@@ -92,13 +128,26 @@ public class GraphicConveyor {
             final float nearPlane,
             final float farPlane) {
         Matrix4f result = Matrix4f.zero();
-        float tanFov = (float) Math.tan(fov * 0.5F);
         
-        result.set(0, 0, 1.0f / (tanFov * aspectRatio));
-        result.set(1, 1, 1.0f / tanFov);
+        // FOV должен быть в радианах, если передается в градусах, нужно преобразовать
+        // Предполагаем, что fov уже в радианах, но если это не так, можно добавить проверку
+        float fovRad = fov;
+        // Если fov > 10, вероятно это градусы, преобразуем
+        if (fov > 10.0f) {
+            fovRad = (float) Math.toRadians(fov);
+        }
+        
+        float tanHalfFov = (float) Math.tan(fovRad * 0.5F);
+        
+        if (tanHalfFov < 1e-6f || aspectRatio < 1e-6f || Math.abs(farPlane - nearPlane) < 1e-6f) {
+            throw new IllegalArgumentException("Invalid perspective parameters");
+        }
+        
+        result.set(0, 0, 1.0f / (tanHalfFov * aspectRatio));
+        result.set(1, 1, 1.0f / tanHalfFov);
         result.set(2, 2, (farPlane + nearPlane) / (farPlane - nearPlane));
         result.set(2, 3, 1.0f);
-        result.set(3, 2, 2.0f * nearPlane * farPlane / (nearPlane - farPlane));
+        result.set(3, 2, -2.0f * nearPlane * farPlane / (farPlane - nearPlane));
         
         return result;
     }

@@ -154,7 +154,8 @@ public class GuiController {
     private Camera camera = new Camera(
             new Vector3f(initialCameraPosition),
             new Vector3f(initialCameraTarget),
-            1.0F, 1, 0.01F, 100);
+            (float) Math.toRadians(60.0), // FOV в радианах (60 градусов)
+            1, 0.01F, 100);
     
     private CameraController cameraController;
 
