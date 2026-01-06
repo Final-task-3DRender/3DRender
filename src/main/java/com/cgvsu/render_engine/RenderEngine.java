@@ -9,6 +9,7 @@ import com.cgvsu.math.Point2f;
 import javafx.scene.canvas.GraphicsContext;
 import com.cgvsu.model.Model;
 import com.cgvsu.model.ModelTransform;
+import com.cgvsu.camera.Camera;
 import static com.cgvsu.render_engine.GraphicConveyor.*;
 
 public class RenderEngine {

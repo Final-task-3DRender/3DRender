@@ -1,19 +1,19 @@
-package com.cgvsu.render_engine;
+package com.cgvsu.camera;
 
 import com.cgvsu.math.Vector3f;
 
 /**
- * Контроллер для управления камерой.
- * Инкапсулирует всю логику движения, поворота и зума камеры.
+ * Контроллер для управления орбитальной камерой.
+ * Камера вращается вокруг фиксированной точки (target) в сферических координатах.
  * 
  * Поддерживает:
  * - Движение камеры в 6 направлениях (вперед/назад, влево/вправо, вверх/вниз)
- * - Поворот камеры вокруг цели с помощью мыши
- * - Зум камеры (приближение/отдаление)
+ * - Поворот камеры вокруг цели с помощью мыши (орбитальное движение)
+ * - Зум камеры (приближение/отдаление путем изменения радиуса)
  * - Сброс камеры в начальное положение
  * - Настраиваемые параметры чувствительности
  */
-public class CameraController {
+public class OrbitCameraController {
     
     private final Camera camera;
     
@@ -32,13 +32,13 @@ public class CameraController {
     private boolean isMousePressed = false;
     
     /**
-     * Создает контроллер для управления камерой
+     * Создает контроллер для управления орбитальной камерой
      * 
      * @param camera камера для управления
      * @param initialPosition начальная позиция камеры
-     * @param initialTarget начальная цель камеры
+     * @param initialTarget начальная цель камеры (точка, вокруг которой вращается камера)
      */
-    public CameraController(Camera camera, Vector3f initialPosition, Vector3f initialTarget) {
+    public OrbitCameraController(Camera camera, Vector3f initialPosition, Vector3f initialTarget) {
         if (camera == null) {
             throw new IllegalArgumentException("Camera не может быть null");
         }
@@ -56,7 +56,7 @@ public class CameraController {
      * 
      * @param camera камера для управления
      */
-    public CameraController(Camera camera) {
+    public OrbitCameraController(Camera camera) {
         if (camera == null) {
             throw new IllegalArgumentException("Camera не может быть null");
         }
@@ -186,10 +186,10 @@ public class CameraController {
         camera.movePosition(normalized);
     }
     
-    // ========== Поворот камеры ==========
+    // ========== Поворот камеры (орбитальное движение) ==========
     
     /**
-     * Поворот камеры вокруг цели
+     * Поворот камеры вокруг цели (орбитальное движение)
      * Используется для управления мышью
      * 
      * @param deltaX изменение по X (в пикселях)
@@ -201,10 +201,10 @@ public class CameraController {
     }
     
     /**
-     * Поворот камеры вокруг цели
+     * Поворот камеры вокруг цели (орбитальное движение)
      * 
-     * @param deltaX изменение угла по X (в радианах)
-     * @param deltaY изменение угла по Y (в радианах)
+     * @param deltaX изменение угла по X (в радианах) - горизонтальный поворот
+     * @param deltaY изменение угла по Y (в радианах) - вертикальный поворот
      */
     public void rotateAroundTarget(float deltaX, float deltaY) {
         Vector3f position = camera.getPosition();
@@ -353,7 +353,7 @@ public class CameraController {
     
     /**
      * Обработка перетаскивания мыши
-     * Поворачивает камеру вокруг цели
+     * Поворачивает камеру вокруг цели (орбитальное движение)
      * 
      * @param mouseX текущая координата X мыши
      * @param mouseY текущая координата Y мыши

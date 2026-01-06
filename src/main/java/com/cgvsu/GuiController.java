@@ -34,8 +34,8 @@ import com.cgvsu.model.Model;
 import com.cgvsu.model.ModelTransform;
 import com.cgvsu.objreader.ObjReader;
 import com.cgvsu.objwriter.ObjWriter;
-import com.cgvsu.render_engine.Camera;
-import com.cgvsu.render_engine.CameraController;
+import com.cgvsu.camera.Camera;
+import com.cgvsu.camera.OrbitCameraController;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
@@ -157,7 +157,7 @@ public class GuiController {
             (float) Math.toRadians(60.0), // FOV в радианах (60 градусов)
             1, 0.01F, 100);
     
-    private CameraController cameraController;
+    private OrbitCameraController cameraController;
 
     private Timeline timeline;
 
@@ -216,7 +216,7 @@ public class GuiController {
         setupSceneModelsUI();
 
         // Initialize camera controller
-        cameraController = new CameraController(camera, initialCameraPosition, initialCameraTarget);
+        cameraController = new OrbitCameraController(camera, initialCameraPosition, initialCameraTarget);
 
         updateStatusBar();
         updateTransformUI();
