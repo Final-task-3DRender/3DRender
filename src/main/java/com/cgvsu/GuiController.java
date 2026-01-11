@@ -21,6 +21,8 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ButtonBar;
 import javafx.util.Duration;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,6 +38,10 @@ import com.cgvsu.objreader.ObjReader;
 import com.cgvsu.objwriter.ObjWriter;
 import com.cgvsu.camera.Camera;
 import com.cgvsu.camera.OrbitCameraController;
+import com.cgvsu.model.ModelTransformer;
+import com.cgvsu.transform.ModelMatrixBuilder;
+import com.cgvsu.math.Matrix4f;
+import java.util.Optional;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
@@ -690,6 +696,24 @@ public class GuiController {
             return;
         }
 
+        // Создаем диалог выбора: сохранить исходную модель или с трансформациями
+        Alert choiceDialog = new Alert(AlertType.CONFIRMATION);
+        choiceDialog.setTitle("Save Model");
+        choiceDialog.setHeaderText("Choose save option:");
+        choiceDialog.setContentText("Save original model or model with applied transformations?");
+        
+        ButtonType originalButton = new ButtonType("Original Model", ButtonBar.ButtonData.YES);
+        ButtonType transformedButton = new ButtonType("With Transformations", ButtonBar.ButtonData.NO);
+        ButtonType cancelButton = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        
+        choiceDialog.getButtonTypes().setAll(originalButton, transformedButton, cancelButton);
+        
+        Optional<ButtonType> result = choiceDialog.showAndWait();
+        
+        if (result.isEmpty() || result.get() == cancelButton) {
+            return;
+        }
+
         FileChooser fileChooser = new FileChooser();
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model (*.obj)", "*.obj"));
         fileChooser.setTitle("Save Model");
@@ -703,8 +727,20 @@ public class GuiController {
         }
 
         try {
-            ObjWriter.saveModel(current.model, file.getAbsolutePath());
-            showSuccess("Model saved", "Model successfully saved to:\n" + file.getAbsolutePath());
+            Model modelToSave;
+            if (result.get() == transformedButton) {
+                // Применяем трансформации к модели
+                Matrix4f transformMatrix = ModelMatrixBuilder.build(current.transform);
+                modelToSave = ModelTransformer.applyTransform(current.model, transformMatrix);
+            } else {
+                // Сохраняем исходную модель
+                modelToSave = current.model;
+            }
+            
+            ObjWriter.saveModel(modelToSave, file.getAbsolutePath());
+            
+            String saveType = (result.get() == transformedButton) ? "with transformations" : "original";
+            showSuccess("Model saved", String.format("Model (%s) successfully saved to:\n%s", saveType, file.getAbsolutePath()));
         } catch (IOException exception) {
             showError("Error saving model", "Failed to save file: " + exception.getMessage());
         } catch (Exception exception) {
