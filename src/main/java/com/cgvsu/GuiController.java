@@ -41,6 +41,9 @@ import com.cgvsu.camera.OrbitCameraController;
 import com.cgvsu.model.ModelTransformer;
 import com.cgvsu.transform.ModelMatrixBuilder;
 import com.cgvsu.math.Matrix4f;
+import com.cgvsu.triangulation.SimpleTriangulator;
+import com.cgvsu.triangulation.Triangulator;
+import com.cgvsu.render_engine.NormalCalculator;
 import java.util.Optional;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Button;
@@ -662,6 +665,13 @@ public class GuiController {
         try {
             String fileContent = Files.readString(fileName);
             Model mesh = ObjReader.read(fileContent);
+
+            // Триангулируем модель
+            Triangulator triangulator = new SimpleTriangulator();
+            triangulator.triangulateModel(mesh);
+
+            // Пересчитываем нормали (даже если они были в файле, мы не можем им доверять)
+            NormalCalculator.recalculateNormals(mesh);
 
             SceneModel sceneModel = new SceneModel(mesh, file.getName());
             sceneModels.add(sceneModel);
