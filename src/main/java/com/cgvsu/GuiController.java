@@ -49,6 +49,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ColorPicker;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
@@ -149,6 +150,20 @@ public class GuiController {
     @FXML
     private CheckBox modelActiveCheckBox;
 
+    @FXML
+    private CheckBox showWireframeCheckBox;
+
+    @FXML
+    private CheckBox showFilledCheckBox;
+
+    @FXML
+    private ColorPicker fillColorPicker;
+
+    @FXML
+    private ColorPicker wireframeColorPicker;
+
+    private com.cgvsu.render_engine.RenderSettings renderSettings = new com.cgvsu.render_engine.RenderSettings();
+
     private final List<SceneModel> sceneModels = new ArrayList<>();
     private final ObservableList<String> modelNames = FXCollections.observableArrayList();
     private int selectedModelIndex = -1;
@@ -191,7 +206,8 @@ public class GuiController {
         timeline = new Timeline();
         timeline.setCycleCount(Animation.INDEFINITE);
 
-        KeyFrame frame = new KeyFrame(Duration.millis(15), event -> {
+        // Увеличен интервал рендеринга до 33 мс (~30 FPS) для лучшей производительности с большими моделями
+        KeyFrame frame = new KeyFrame(Duration.millis(33), event -> {
             double width = canvas.getWidth();
             double height = canvas.getHeight();
 
@@ -207,7 +223,8 @@ public class GuiController {
                                 sceneModel.model,
                                 sceneModel.transform,
                                 (int) width,
-                                (int) height
+                                (int) height,
+                                renderSettings
                         );
                     }
                 }
@@ -223,6 +240,7 @@ public class GuiController {
 
         setupTransformUI();
         setupSceneModelsUI();
+        setupDisplaySettingsUI();
 
         // Initialize camera controller
         cameraController = new OrbitCameraController(camera, initialCameraPosition, initialCameraTarget);
@@ -755,6 +773,36 @@ public class GuiController {
             showError("Error saving model", "Failed to save file: " + exception.getMessage());
         } catch (Exception exception) {
             showError("Error saving model", "Unexpected error: " + exception.getMessage());
+        }
+    }
+
+    private void setupDisplaySettingsUI() {
+        if (showWireframeCheckBox != null) {
+            showWireframeCheckBox.setSelected(renderSettings.isShowWireframe());
+            showWireframeCheckBox.setOnAction(e -> {
+                renderSettings.setShowWireframe(showWireframeCheckBox.isSelected());
+            });
+        }
+
+        if (showFilledCheckBox != null) {
+            showFilledCheckBox.setSelected(renderSettings.isShowFilled());
+            showFilledCheckBox.setOnAction(e -> {
+                renderSettings.setShowFilled(showFilledCheckBox.isSelected());
+            });
+        }
+
+        if (fillColorPicker != null) {
+            fillColorPicker.setValue(renderSettings.getFillColor());
+            fillColorPicker.setOnAction(e -> {
+                renderSettings.setFillColor(fillColorPicker.getValue());
+            });
+        }
+
+        if (wireframeColorPicker != null) {
+            wireframeColorPicker.setValue(renderSettings.getWireframeColor());
+            wireframeColorPicker.setOnAction(e -> {
+                renderSettings.setWireframeColor(wireframeColorPicker.getValue());
+            });
         }
     }
 

@@ -12,6 +12,7 @@
 <?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ColorPicker?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
@@ -106,6 +107,18 @@
                     <Button fx:id="scaleZDecButton" text="-" prefWidth="30" GridPane.columnIndex="2" GridPane.rowIndex="11"/>
                     <Button fx:id="scaleZIncButton" text="+" prefWidth="30" GridPane.columnIndex="3" GridPane.rowIndex="11"/>
                 </GridPane>
+            </TitledPane>
+            <TitledPane text="Display Settings" expanded="true">
+                <VBox spacing="10" style="-fx-padding: 10;">
+                    <CheckBox fx:id="showWireframeCheckBox" text="Show Wireframe" selected="true"/>
+                    <CheckBox fx:id="showFilledCheckBox" text="Show Filled" selected="true"/>
+                    <Separator/>
+                    <Label text="Fill Color:" style="-fx-font-weight: bold;"/>
+                    <ColorPicker fx:id="fillColorPicker"/>
+                    <Separator/>
+                    <Label text="Wireframe Color:" style="-fx-font-weight: bold;"/>
+                    <ColorPicker fx:id="wireframeColorPicker"/>
+                </VBox>
             </TitledPane>
         </VBox>
     </left>

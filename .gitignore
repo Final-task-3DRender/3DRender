@@ -23,3 +23,6 @@ Thumbs.db
 *.jar
 *.war
 *.ear
+
+# Personal documentation (not for repository)
+IMPLEMENTATION_NOTES.md
