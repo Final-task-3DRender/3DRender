@@ -26,3 +26,8 @@ Thumbs.db
 
 # Personal documentation (not for repository)
 IMPLEMENTATION_NOTES.md
+BACKFACE_CULLING_*.md
+NORMAL_CALCULATOR_*.md
+REMAINING_TASKS.md
+TEXTURE_IMPLEMENTATION_PLAN.md
+TASK3_ANALYSIS.md

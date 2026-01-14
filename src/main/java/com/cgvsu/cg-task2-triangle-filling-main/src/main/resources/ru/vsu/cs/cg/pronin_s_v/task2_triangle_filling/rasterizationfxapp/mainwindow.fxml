@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-
-<?import javafx.scene.layout.AnchorPane?>
-<?import javafx.scene.canvas.Canvas?>
-
-<AnchorPane fx:id="anchorPane" style="-fx-background-color: black;" xmlns:fx="http://javafx.com/fxml"
-            fx:controller="ru.vsu.cs.cg.pronin_s_v.task2_triangle_filling.rasterizationfxapp.RasterizationController">
-    <Canvas fx:id="canvas" width="800" height="600"/>
-</AnchorPane>
