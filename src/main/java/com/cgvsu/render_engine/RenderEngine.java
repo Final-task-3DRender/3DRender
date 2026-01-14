@@ -66,6 +66,13 @@ public class RenderEngine {
         Color triangleColor = settings.getFillColor();
         Color wireframeColor = settings.getWireframeColor();
 
+        // Создаем Z-buffer только если он включен в настройках
+        ZBuffer zBuffer = null;
+        if (settings.isEnableZBuffer()) {
+            zBuffer = new ZBuffer(width, height);
+            zBuffer.clear();
+        }
+
         final int nPolygons = mesh.polygons.size();
         
         // Оптимизация для больших моделей: пропускаем каждый N-й полигон
@@ -88,6 +95,7 @@ public class RenderEngine {
             }
 
             ArrayList<Point2f> resultPoints = new ArrayList<>();
+            ArrayList<Float> resultZ = new ArrayList<>();
             for (int vertexInPolygonInd = 0; vertexInPolygonInd < nVerticesInPolygon; ++vertexInPolygonInd) {
                 Vector3f vertex = mesh.vertices.get(mesh.polygons.get(polygonInd).getVertexIndices().get(vertexInPolygonInd));
 
@@ -102,6 +110,9 @@ public class RenderEngine {
                     transformed = transformed.divide(transformed.w);
                 }
                 
+                // Сохраняем Z-координату (глубину) в NDC пространстве
+                resultZ.add(transformed.z);
+                
                 // Преобразуем в экранные координаты
                 Point2f resultPoint = vertexToPoint(transformed, width, height);
                 resultPoints.add(resultPoint);
@@ -113,9 +124,10 @@ public class RenderEngine {
                 if (settings.isShowFilled()) {
                     TriangleRasterizer.fillTriangle(
                         graphicsContext,
-                        resultPoints.get(0).x, resultPoints.get(0).y, triangleColor,
-                        resultPoints.get(1).x, resultPoints.get(1).y, triangleColor,
-                        resultPoints.get(2).x, resultPoints.get(2).y, triangleColor
+                        zBuffer,
+                        resultPoints.get(0).x, resultPoints.get(0).y, resultZ.get(0), triangleColor,
+                        resultPoints.get(1).x, resultPoints.get(1).y, resultZ.get(1), triangleColor,
+                        resultPoints.get(2).x, resultPoints.get(2).y, resultZ.get(2), triangleColor
                     );
                 }
                 
@@ -142,9 +154,10 @@ public class RenderEngine {
                     for (int vertexInPolygonInd = 1; vertexInPolygonInd < nVerticesInPolygon - 1; ++vertexInPolygonInd) {
                         TriangleRasterizer.fillTriangle(
                             graphicsContext,
-                            resultPoints.get(0).x, resultPoints.get(0).y, triangleColor,
-                            resultPoints.get(vertexInPolygonInd).x, resultPoints.get(vertexInPolygonInd).y, triangleColor,
-                            resultPoints.get(vertexInPolygonInd + 1).x, resultPoints.get(vertexInPolygonInd + 1).y, triangleColor
+                            zBuffer,
+                            resultPoints.get(0).x, resultPoints.get(0).y, resultZ.get(0), triangleColor,
+                            resultPoints.get(vertexInPolygonInd).x, resultPoints.get(vertexInPolygonInd).y, resultZ.get(vertexInPolygonInd), triangleColor,
+                            resultPoints.get(vertexInPolygonInd + 1).x, resultPoints.get(vertexInPolygonInd + 1).y, resultZ.get(vertexInPolygonInd + 1), triangleColor
                         );
                     }
                 }

@@ -11,6 +11,7 @@ public class RenderSettings {
     private boolean showFilled = true;
     private Color fillColor = Color.LIGHTGRAY;
     private Color wireframeColor = Color.DARKGRAY;
+    private boolean enableZBuffer = true; // По умолчанию включен для правильной отрисовки
 
     public RenderSettings() {
     }
@@ -52,5 +53,13 @@ public class RenderSettings {
 
     public void setWireframeColor(Color wireframeColor) {
         this.wireframeColor = wireframeColor;
+    }
+
+    public boolean isEnableZBuffer() {
+        return enableZBuffer;
+    }
+
+    public void setEnableZBuffer(boolean enableZBuffer) {
+        this.enableZBuffer = enableZBuffer;
     }
 }

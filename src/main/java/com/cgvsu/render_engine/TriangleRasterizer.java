@@ -41,6 +41,31 @@ public class TriangleRasterizer {
             double x1, double y1, Color c1,
             double x2, double y2, Color c2
     ) {
+        fillTriangle(gc, null, x0, y0, 0.0f, c0, x1, y1, 0.0f, c1, x2, y2, 0.0f, c2);
+    }
+    
+    /**
+     * Заливает треугольник с интерполяцией цвета и поддержкой Z-buffer.
+     * 
+     * @param gc GraphicsContext для отрисовки
+     * @param zBuffer Z-buffer для проверки глубины (может быть null)
+     * @param x0, y0, z0 координаты и глубина первой вершины
+     * @param c0 цвет первой вершины
+     * @param x1, y1, z1 координаты и глубина второй вершины
+     * @param c1 цвет второй вершины
+     * @param x2, y2, z2 координаты и глубина третьей вершины
+     * @param c2 цвет третьей вершины
+     */
+    public static void fillTriangle(
+            GraphicsContext gc,
+            ZBuffer zBuffer,
+            double x0, double y0, float z0,
+            Color c0,
+            double x1, double y1, float z1,
+            Color c1,
+            double x2, double y2, float z2,
+            Color c2
+    ) {
         PixelWriter writer = gc.getPixelWriter();
         if (writer == null) return;
 
@@ -57,7 +82,7 @@ public class TriangleRasterizer {
         
         // Проверка на вырожденный треугольник
         if (Math.abs(triangleArea) < EPSILON) {
-            drawDegenerateTriangle(writer, x0, y0, c0, x1, y1, c1, x2, y2, c2, width, height);
+            drawDegenerateTriangle(writer, zBuffer, x0, y0, z0, c0, x1, y1, z1, c1, x2, y2, z2, c2, width, height);
             return;
         }
 
@@ -97,7 +122,7 @@ public class TriangleRasterizer {
         maxY = minY + rows - 1;
 
         // Растеризуем треугольник
-        rasterizeTriangle(writer, x0, y0, c0, x1, y1, c1, x2, y2, c2,
+        rasterizeTriangle(writer, zBuffer, x0, y0, z0, c0, x1, y1, z1, c1, x2, y2, z2, c2,
                          triangleArea, minY, maxY, width, height);
     }
 
@@ -154,9 +179,10 @@ public class TriangleRasterizer {
      */
     private static void rasterizeTriangle(
             PixelWriter writer,
-            double x0, double y0, Color c0,
-            double x1, double y1, Color c1,
-            double x2, double y2, Color c2,
+            ZBuffer zBuffer,
+            double x0, double y0, float z0, Color c0,
+            double x1, double y1, float z1, Color c1,
+            double x2, double y2, float z2, Color c2,
             double triangleArea,
             int minY, int maxY,
             int width, int height) {
@@ -168,6 +194,14 @@ public class TriangleRasterizer {
         double[] rightX = new double[rows];
         Color[] leftColor = new Color[rows];
         Color[] rightColor = new Color[rows];
+        
+        // Выделяем массивы для Z только если Z-buffer включен
+        float[] leftZ = null;
+        float[] rightZ = null;
+        if (zBuffer != null) {
+            leftZ = new float[rows];
+            rightZ = new float[rows];
+        }
 
         // Инициализация массивов
         for (int i = 0; i < rows; i++) {
@@ -175,16 +209,20 @@ public class TriangleRasterizer {
             rightX[i] = Double.NEGATIVE_INFINITY;
             leftColor[i] = null;
             rightColor[i] = null;
+            if (zBuffer != null) {
+                leftZ[i] = Float.POSITIVE_INFINITY;
+                rightZ[i] = Float.NEGATIVE_INFINITY;
+            }
         }
 
-        // Растеризуем три ребра треугольника
-        rasterizeEdge(x0, y0, c0, x1, y1, c1, leftX, rightX, leftColor, rightColor, minY, maxY);
-        rasterizeEdge(x1, y1, c1, x2, y2, c2, leftX, rightX, leftColor, rightColor, minY, maxY);
-        rasterizeEdge(x2, y2, c2, x0, y0, c0, leftX, rightX, leftColor, rightColor, minY, maxY);
+        // Растеризуем три ребра треугольника (с интерполяцией Z только если нужно)
+        rasterizeEdge(x0, y0, z0, c0, x1, y1, z1, c1, leftX, rightX, leftColor, rightColor, leftZ, rightZ, minY, maxY);
+        rasterizeEdge(x1, y1, z1, c1, x2, y2, z2, c2, leftX, rightX, leftColor, rightColor, leftZ, rightZ, minY, maxY);
+        rasterizeEdge(x2, y2, z2, c2, x0, y0, z0, c0, leftX, rightX, leftColor, rightColor, leftZ, rightZ, minY, maxY);
 
         // Заполняем треугольник построчно
-        fillTriangleRows(writer, leftX, rightX, leftColor, rightColor,
-                        x0, y0, c0, x1, y1, c1, x2, y2, c2,
+        fillTriangleRows(writer, zBuffer, x0, y0, z0, c0, x1, y1, z1, c1, x2, y2, z2, c2,
+                        leftX, rightX, leftColor, rightColor, leftZ, rightZ,
                         triangleArea, minY, maxY, width, height);
     }
 
@@ -193,11 +231,13 @@ public class TriangleRasterizer {
      */
     private static void fillTriangleRows(
             PixelWriter writer,
+            ZBuffer zBuffer,
+            double x0, double y0, float z0, Color c0,
+            double x1, double y1, float z1, Color c1,
+            double x2, double y2, float z2, Color c2,
             double[] leftX, double[] rightX,
             Color[] leftColor, Color[] rightColor,
-            double x0, double y0, Color c0,
-            double x1, double y1, Color c1,
-            double x2, double y2, Color c2,
+            float[] leftZ, float[] rightZ,
             double triangleArea,
             int minY, int maxY,
             int width, int height) {
@@ -230,13 +270,32 @@ public class TriangleRasterizer {
             // Адаптивный выбор режима рендеринга
             boolean useFastMode = shouldUseFastMode(pixelCount, triangleArea, width, height);
             
+            // Вычисляем Z только если Z-buffer включен
+            // Используем барицентрическую интерполяцию Z согласно теории:
+            // z'pixel = αz'A + βz'B + γz'C
+            float leftZVal = 0.0f;
+            float rightZVal = 0.0f;
+            if (zBuffer != null && leftZ != null && rightZ != null) {
+                // Если Z не был установлен на ребре, используем значение из вершины
+                leftZVal = (Float.isInfinite(leftZ[idx]) || Float.isNaN(leftZ[idx])) ? z0 : leftZ[idx];
+                rightZVal = (Float.isInfinite(rightZ[idx]) || Float.isNaN(rightZ[idx])) ? z1 : rightZ[idx];
+                
+                // Проверка валидности Z перед использованием
+                if (Float.isNaN(leftZVal) || Float.isInfinite(leftZVal)) {
+                    leftZVal = z0;
+                }
+                if (Float.isNaN(rightZVal) || Float.isInfinite(rightZVal)) {
+                    rightZVal = z1;
+                }
+            }
+            
             if (useFastMode) {
-                // Быстрый режим: линейная интерполяция цвета
-                fillRowFast(writer, xStart, xEnd, y, leftColor[idx], rightColor[idx], c0, c1);
+                // Быстрый режим: линейная интерполяция цвета и Z
+                fillRowFast(writer, zBuffer, xStart, xEnd, y, leftColor[idx], rightColor[idx], leftZVal, rightZVal, c0, c1);
             } else {
                 // Точный режим: барицентрические координаты
-                fillRowPrecise(writer, xStart, xEnd, y,
-                              x0, y0, c0, x1, y1, c1, x2, y2, c2, triangleArea);
+                fillRowPrecise(writer, zBuffer, xStart, xEnd, y,
+                              x0, y0, z0, c0, x1, y1, z1, c1, x2, y2, z2, c2, triangleArea);
             }
         }
     }
@@ -254,15 +313,20 @@ public class TriangleRasterizer {
      */
     private static void fillRowFast(
             PixelWriter writer,
+            ZBuffer zBuffer,
             int xStart, int xEnd, int y,
-            Color leftC, Color rightC, Color defaultC0, Color defaultC1) {
+            Color leftC, Color rightC,
+            float leftZ, float rightZ,
+            Color defaultC0, Color defaultC1) {
         
         Color leftColor = (leftC != null) ? leftC : defaultC0;
         Color rightColor = (rightC != null) ? rightC : defaultC1;
         
         int span = xEnd - xStart;
         if (span == 0) {
-            writer.setColor(xStart, y, leftColor);
+            if (zBuffer == null || zBuffer.testAndSet(xStart, y, leftZ)) {
+                writer.setColor(xStart, y, leftColor);
+            }
             return;
         }
 
@@ -274,14 +338,39 @@ public class TriangleRasterizer {
         double rightG = rightColor.getGreen();
         double rightB = rightColor.getBlue();
         
-        // Линейная интерполяция цвета
-        for (int x = xStart; x <= xEnd; x++) {
-            double t = (double) (x - xStart) / span;
-            double r = leftR * (1.0 - t) + rightR * t;
-            double g = leftG * (1.0 - t) + rightG * t;
-            double b = leftB * (1.0 - t) + rightB * t;
-            
-            writer.setColor(x, y, new Color(r, g, b, 1.0));
+        // Линейная интерполяция цвета и Z (Z только если нужно)
+        if (zBuffer == null) {
+            // Без Z-buffer - просто рисуем все пиксели
+            for (int x = xStart; x <= xEnd; x++) {
+                double t = (double) (x - xStart) / span;
+                double r = leftR * (1.0 - t) + rightR * t;
+                double g = leftG * (1.0 - t) + rightG * t;
+                double b = leftB * (1.0 - t) + rightB * t;
+                writer.setColor(x, y, new Color(r, g, b, 1.0));
+            }
+        } else {
+            // С Z-buffer - проверяем глубину
+            // Линейная интерполяция Z согласно алгоритму Z-buffer
+            for (int x = xStart; x <= xEnd; x++) {
+                double t = (double) (x - xStart) / span;
+                // Интерполируем Z: z'pixel = (1-t) * z'left + t * z'right
+                float z = (float) (leftZ * (1.0 - t) + rightZ * t);
+                
+                // Проверка валидности Z перед использованием
+                if (Float.isNaN(z) || Float.isInfinite(z)) {
+                    // Если Z невалиден, пропускаем пиксель
+                    continue;
+                }
+                
+                // Согласно алгоритму Z-buffer: if (z_buffer(x, y) <= z) continue;
+                // testAndSet возвращает true только если z < z_buffer(x, y)
+                if (zBuffer.testAndSet(x, y, z)) {
+                    double r = leftR * (1.0 - t) + rightR * t;
+                    double g = leftG * (1.0 - t) + rightG * t;
+                    double b = leftB * (1.0 - t) + rightB * t;
+                    writer.setColor(x, y, new Color(r, g, b, 1.0));
+                }
+            }
         }
     }
 
@@ -290,10 +379,11 @@ public class TriangleRasterizer {
      */
     private static void fillRowPrecise(
             PixelWriter writer,
+            ZBuffer zBuffer,
             int xStart, int xEnd, int y,
-            double x0, double y0, Color c0,
-            double x1, double y1, Color c1,
-            double x2, double y2, Color c2,
+            double x0, double y0, float z0, Color c0,
+            double x1, double y1, float z1, Color c1,
+            double x2, double y2, float z2, Color c2,
             double triangleArea) {
         
         // Предвычисляем компоненты цветов для оптимизации
@@ -315,25 +405,63 @@ public class TriangleRasterizer {
         double x0_x2 = x0 - x2;
         double py_y2 = y - y2;
         
-        for (int x = xStart; x <= xEnd; x++) {
-            double px_x2 = x - x2;
-            
-            // Вычисляем барицентрические координаты
-            double alpha = (y1_y2 * px_x2 + x2_x1 * py_y2) * invArea;
-            double beta = (y2_y0 * px_x2 + x0_x2 * py_y2) * invArea;
-            double gamma = 1.0 - alpha - beta;
+        if (zBuffer == null) {
+            // Без Z-buffer - просто рисуем все пиксели
+            for (int x = xStart; x <= xEnd; x++) {
+                double px_x2 = x - x2;
+                
+                // Вычисляем барицентрические координаты
+                double alpha = (y1_y2 * px_x2 + x2_x1 * py_y2) * invArea;
+                double beta = (y2_y0 * px_x2 + x0_x2 * py_y2) * invArea;
+                double gamma = 1.0 - alpha - beta;
 
-            // Интерполируем цвет
-            double r = alpha * c0r + beta * c1r + gamma * c2r;
-            double g = alpha * c0g + beta * c1g + gamma * c2g;
-            double b = alpha * c0b + beta * c1b + gamma * c2b;
+                // Интерполируем цвет
+                double r = alpha * c0r + beta * c1r + gamma * c2r;
+                double g = alpha * c0g + beta * c1g + gamma * c2g;
+                double b = alpha * c0b + beta * c1b + gamma * c2b;
 
-            // Ограничиваем значения [0, 1]
-            r = Math.max(0.0, Math.min(1.0, r));
-            g = Math.max(0.0, Math.min(1.0, g));
-            b = Math.max(0.0, Math.min(1.0, b));
+                // Ограничиваем значения [0, 1]
+                r = Math.max(0.0, Math.min(1.0, r));
+                g = Math.max(0.0, Math.min(1.0, g));
+                b = Math.max(0.0, Math.min(1.0, b));
 
-            writer.setColor(x, y, new Color(r, g, b, 1.0));
+                writer.setColor(x, y, new Color(r, g, b, 1.0));
+            }
+        } else {
+            // С Z-buffer - проверяем глубину
+            for (int x = xStart; x <= xEnd; x++) {
+                double px_x2 = x - x2;
+                
+                // Вычисляем барицентрические координаты
+                double alpha = (y1_y2 * px_x2 + x2_x1 * py_y2) * invArea;
+                double beta = (y2_y0 * px_x2 + x0_x2 * py_y2) * invArea;
+                double gamma = 1.0 - alpha - beta;
+
+                // Интерполируем Z-координату через барицентрические координаты
+                // Согласно теории: z'pixel = αz'A + βz'B + γz'C
+                float z = (float) (alpha * z0 + beta * z1 + gamma * z2);
+                
+                // Проверка валидности Z перед использованием
+                if (Float.isNaN(z) || Float.isInfinite(z)) {
+                    continue;
+                }
+                
+                // Согласно алгоритму Z-buffer: if (z_buffer(x, y) <= z) continue;
+                // testAndSet возвращает true только если z < z_buffer(x, y)
+                if (zBuffer.testAndSet(x, y, z)) {
+                    // Интерполируем цвет
+                    double r = alpha * c0r + beta * c1r + gamma * c2r;
+                    double g = alpha * c0g + beta * c1g + gamma * c2g;
+                    double b = alpha * c0b + beta * c1b + gamma * c2b;
+
+                    // Ограничиваем значения [0, 1]
+                    r = Math.max(0.0, Math.min(1.0, r));
+                    g = Math.max(0.0, Math.min(1.0, g));
+                    b = Math.max(0.0, Math.min(1.0, b));
+
+                    writer.setColor(x, y, new Color(r, g, b, 1.0));
+                }
+            }
         }
     }
 
@@ -341,10 +469,11 @@ public class TriangleRasterizer {
      * Растеризует одно ребро треугольника алгоритмом Брезенхема.
      */
     private static void rasterizeEdge(
-            double x0d, double y0d, Color c0,
-            double x1d, double y1d, Color c1,
+            double x0d, double y0d, float z0, Color c0,
+            double x1d, double y1d, float z1, Color c1,
             double[] leftX, double[] rightX,
             Color[] leftColor, Color[] rightColor,
+            float[] leftZ, float[] rightZ,
             int minY, int maxY) {
         
         int x0 = (int) Math.round(x0d);
@@ -360,11 +489,14 @@ public class TriangleRasterizer {
             if (y0 >= minY && y0 <= maxY) {
                 int idx = y0 - minY;
                 if (idx >= 0 && idx < leftX.length) {
-                    updateEdgeBounds(x0, c0, leftX, rightX, leftColor, rightColor, idx);
+                    updateEdgeBounds(x0, z0, c0, leftX, rightX, leftColor, rightColor, leftZ, rightZ, idx);
                 }
             }
             return;
         }
+        
+        // Если Z-buffer не используется, не вычисляем Z
+        boolean useZ = (leftZ != null && rightZ != null);
 
         int sx = (x0 < x1) ? 1 : -1;
         int sy = (y0 < y1) ? 1 : -1;
@@ -388,7 +520,16 @@ public class TriangleRasterizer {
                 if (idx >= 0 && idx < leftX.length) {
                     double t = (steps > 0) ? (double) i / steps : 0.0;
                     Color c = interpolateColor(c0, c1, t);
-                    updateEdgeBounds(x, c, leftX, rightX, leftColor, rightColor, idx);
+                    // Линейная интерполяция Z вдоль ребра
+                    float z = useZ ? (float) (z0 * (1.0 - t) + z1 * t) : 0.0f;
+                    
+                    // Проверка валидности Z перед использованием
+                    if (useZ && (Float.isNaN(z) || Float.isInfinite(z))) {
+                        // Если Z невалиден, используем ближайшую вершину
+                        z = (i < steps / 2) ? z0 : z1;
+                    }
+                    
+                    updateEdgeBounds(x, z, c, leftX, rightX, leftColor, rightColor, leftZ, rightZ, idx);
                 }
             }
 
@@ -432,17 +573,20 @@ public class TriangleRasterizer {
      * Обновляет границы ребра для строки.
      */
     private static void updateEdgeBounds(
-            int x, Color c,
+            int x, float z, Color c,
             double[] leftX, double[] rightX,
             Color[] leftColor, Color[] rightColor,
+            float[] leftZ, float[] rightZ,
             int idx) {
         if (x < leftX[idx]) {
             leftX[idx] = x;
             leftColor[idx] = c;
+            leftZ[idx] = z;
         }
         if (x > rightX[idx]) {
             rightX[idx] = x;
             rightColor[idx] = c;
+            rightZ[idx] = z;
         }
     }
 
@@ -472,9 +616,10 @@ public class TriangleRasterizer {
      */
     private static void drawDegenerateTriangle(
             PixelWriter writer,
-            double x0, double y0, Color c0,
-            double x1, double y1, Color c1,
-            double x2, double y2, Color c2,
+            ZBuffer zBuffer,
+            double x0, double y0, float z0, Color c0,
+            double x1, double y1, float z1, Color c1,
+            double x2, double y2, float z2, Color c2,
             int width, int height) {
         
         // Находим две самые удаленные точки
@@ -485,11 +630,11 @@ public class TriangleRasterizer {
         double maxDist = Math.max(dist01, Math.max(dist02, dist12));
         
         if (maxDist == dist01) {
-            drawLine(writer, x0, y0, c0, x1, y1, c1, width, height);
+            drawLine(writer, zBuffer, x0, y0, z0, c0, x1, y1, z1, c1, width, height);
         } else if (maxDist == dist02) {
-            drawLine(writer, x0, y0, c0, x2, y2, c2, width, height);
+            drawLine(writer, zBuffer, x0, y0, z0, c0, x2, y2, z2, c2, width, height);
         } else {
-            drawLine(writer, x1, y1, c1, x2, y2, c2, width, height);
+            drawLine(writer, zBuffer, x1, y1, z1, c1, x2, y2, z2, c2, width, height);
         }
     }
 
@@ -507,8 +652,9 @@ public class TriangleRasterizer {
      */
     private static void drawLine(
             PixelWriter writer,
-            double x0d, double y0d, Color c0,
-            double x1d, double y1d, Color c1,
+            ZBuffer zBuffer,
+            double x0d, double y0d, float z0, Color c0,
+            double x1d, double y1d, float z1, Color c1,
             int width, int height) {
         
         int x0 = (int) Math.round(x0d);
@@ -524,7 +670,16 @@ public class TriangleRasterizer {
         int steps = Math.max(dx, dy);
         if (steps == 0) {
             if (x0 >= 0 && x0 < width && y0 >= 0 && y0 < height) {
-                writer.setColor(x0, y0, c0);
+                if (zBuffer == null) {
+                    writer.setColor(x0, y0, c0);
+                } else {
+                    // Проверка валидности Z
+                    if (!Float.isNaN(z0) && !Float.isInfinite(z0)) {
+                        if (zBuffer.testAndSet(x0, y0, z0)) {
+                            writer.setColor(x0, y0, c0);
+                        }
+                    }
+                }
             }
             return;
         }
@@ -537,7 +692,22 @@ public class TriangleRasterizer {
             if (x >= 0 && x < width && y >= 0 && y < height) {
                 double t = (double) i / steps;
                 Color c = interpolateColor(c0, c1, t);
-                writer.setColor(x, y, c);
+                
+                if (zBuffer == null) {
+                    // Без Z-buffer - просто рисуем
+                    writer.setColor(x, y, c);
+                } else {
+                    // С Z-buffer - интерполируем Z и проверяем глубину
+                    float z = (float) (z0 * (1.0 - t) + z1 * t);
+                    
+                    // Проверка валидности Z
+                    if (!Float.isNaN(z) && !Float.isInfinite(z)) {
+                        // Согласно алгоритму Z-buffer: if (z_buffer(x, y) <= z) continue;
+                        if (zBuffer.testAndSet(x, y, z)) {
+                            writer.setColor(x, y, c);
+                        }
+                    }
+                }
             }
 
             if (x == x1 && y == y1) {
