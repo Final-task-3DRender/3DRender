@@ -41,7 +41,9 @@ public class TriangleRasterizer {
             double x1, double y1, Color c1,
             double x2, double y2, Color c2
     ) {
-        fillTriangle(gc, null, x0, y0, 0.0f, c0, x1, y1, 0.0f, c1, x2, y2, 0.0f, c2);
+        fillTriangle(gc, null, null, x0, y0, 0.0f, 1.0f, 0.0f, 0.0f, c0, 
+                     x1, y1, 0.0f, 1.0f, 0.0f, 0.0f, c1, 
+                     x2, y2, 0.0f, 1.0f, 0.0f, 0.0f, c2);
     }
     
     /**
@@ -66,6 +68,42 @@ public class TriangleRasterizer {
             double x2, double y2, float z2,
             Color c2
     ) {
+        // Вызываем перегрузку с invW=1.0 и UV=0.0 (для обратной совместимости)
+        fillTriangle(gc, zBuffer, null, x0, y0, z0, 1.0f, 0.0f, 0.0f, c0, 
+                     x1, y1, z1, 1.0f, 0.0f, 0.0f, c1, 
+                     x2, y2, z2, 1.0f, 0.0f, 0.0f, c2);
+    }
+    
+    /**
+     * Заливает треугольник с интерполяцией цвета, поддержкой Z-buffer и текстур с perspective-correct interpolation.
+     * 
+     * @param gc GraphicsContext для отрисовки
+     * @param zBuffer Z-buffer для проверки глубины (может быть null)
+     * @param texture текстура для наложения (может быть null)
+     * @param x0, y0, z0 координаты и глубина (z/w) первой вершины
+     * @param invW0 обратное значение w (1/w) первой вершины для perspective-correct interpolation
+     * @param u0, v0 UV координаты первой вершины
+     * @param c0 цвет первой вершины
+     * @param x1, y1, z1 координаты и глубина (z/w) второй вершины
+     * @param invW1 обратное значение w (1/w) второй вершины для perspective-correct interpolation
+     * @param u1, v1 UV координаты второй вершины
+     * @param c1 цвет второй вершины
+     * @param x2, y2, z2 координаты и глубина (z/w) третьей вершины
+     * @param invW2 обратное значение w (1/w) третьей вершины для perspective-correct interpolation
+     * @param u2, v2 UV координаты третьей вершины
+     * @param c2 цвет третьей вершины
+     */
+    public static void fillTriangle(
+            GraphicsContext gc,
+            ZBuffer zBuffer,
+            Texture texture,
+            double x0, double y0, float z0, float invW0, float u0, float v0,
+            Color c0,
+            double x1, double y1, float z1, float invW1, float u1, float v1,
+            Color c1,
+            double x2, double y2, float z2, float invW2, float u2, float v2,
+            Color c2
+    ) {
         PixelWriter writer = gc.getPixelWriter();
         if (writer == null) return;
 
@@ -82,7 +120,9 @@ public class TriangleRasterizer {
         
         // Проверка на вырожденный треугольник
         if (Math.abs(triangleArea) < EPSILON) {
-            drawDegenerateTriangle(writer, zBuffer, x0, y0, z0, c0, x1, y1, z1, c1, x2, y2, z2, c2, width, height);
+            drawDegenerateTriangle(writer, zBuffer, texture, x0, y0, z0, invW0, u0, v0, c0, 
+                                   x1, y1, z1, invW1, u1, v1, c1, 
+                                   x2, y2, z2, invW2, u2, v2, c2, width, height);
             return;
         }
 
@@ -122,7 +162,9 @@ public class TriangleRasterizer {
         maxY = minY + rows - 1;
 
         // Растеризуем треугольник
-        rasterizeTriangle(writer, zBuffer, x0, y0, z0, c0, x1, y1, z1, c1, x2, y2, z2, c2,
+        rasterizeTriangle(writer, zBuffer, texture, x0, y0, z0, invW0, u0, v0, c0, 
+                          x1, y1, z1, invW1, u1, v1, c1, 
+                          x2, y2, z2, invW2, u2, v2, c2,
                          triangleArea, minY, maxY, width, height);
     }
 
@@ -180,9 +222,10 @@ public class TriangleRasterizer {
     private static void rasterizeTriangle(
             PixelWriter writer,
             ZBuffer zBuffer,
-            double x0, double y0, float z0, Color c0,
-            double x1, double y1, float z1, Color c1,
-            double x2, double y2, float z2, Color c2,
+            Texture texture,
+            double x0, double y0, float z0, float invW0, float u0, float v0, Color c0,
+            double x1, double y1, float z1, float invW1, float u1, float v1, Color c1,
+            double x2, double y2, float z2, float invW2, float u2, float v2, Color c2,
             double triangleArea,
             int minY, int maxY,
             int width, int height) {
@@ -202,6 +245,22 @@ public class TriangleRasterizer {
             leftZ = new float[rows];
             rightZ = new float[rows];
         }
+        
+        // Выделяем массивы для UV координат (для perspective-correct interpolation)
+        float[] leftU = null;
+        float[] leftV = null;
+        float[] rightU = null;
+        float[] rightV = null;
+        float[] leftInvW = null;
+        float[] rightInvW = null;
+        if (texture != null) {
+            leftU = new float[rows];
+            leftV = new float[rows];
+            rightU = new float[rows];
+            rightV = new float[rows];
+            leftInvW = new float[rows];
+            rightInvW = new float[rows];
+        }
 
         // Инициализация массивов
         for (int i = 0; i < rows; i++) {
@@ -210,20 +269,39 @@ public class TriangleRasterizer {
             leftColor[i] = null;
             rightColor[i] = null;
             if (zBuffer != null) {
-                leftZ[i] = Float.POSITIVE_INFINITY;
+                // В нашей системе координат: большие значения Z означают ближе к камере
+                // Инициализируем leftZ и rightZ так, чтобы первый реальный Z всегда был больше
+                leftZ[i] = Float.NEGATIVE_INFINITY;
                 rightZ[i] = Float.NEGATIVE_INFINITY;
+            }
+            if (texture != null) {
+                leftU[i] = Float.NaN;
+                leftV[i] = Float.NaN;
+                rightU[i] = Float.NaN;
+                rightV[i] = Float.NaN;
+                leftInvW[i] = Float.NaN;
+                rightInvW[i] = Float.NaN;
             }
         }
 
-        // Растеризуем три ребра треугольника (с интерполяцией Z только если нужно)
-        rasterizeEdge(x0, y0, z0, c0, x1, y1, z1, c1, leftX, rightX, leftColor, rightColor, leftZ, rightZ, minY, maxY);
-        rasterizeEdge(x1, y1, z1, c1, x2, y2, z2, c2, leftX, rightX, leftColor, rightColor, leftZ, rightZ, minY, maxY);
-        rasterizeEdge(x2, y2, z2, c2, x0, y0, z0, c0, leftX, rightX, leftColor, rightColor, leftZ, rightZ, minY, maxY);
+        // Растеризуем три ребра треугольника (с интерполяцией Z и UV только если нужно)
+        rasterizeEdge(x0, y0, z0, invW0, u0, v0, c0, x1, y1, z1, invW1, u1, v1, c1, 
+                      leftX, rightX, leftColor, rightColor, leftZ, rightZ, 
+                      leftU, leftV, rightU, rightV, leftInvW, rightInvW, minY, maxY);
+        rasterizeEdge(x1, y1, z1, invW1, u1, v1, c1, x2, y2, z2, invW2, u2, v2, c2, 
+                      leftX, rightX, leftColor, rightColor, leftZ, rightZ, 
+                      leftU, leftV, rightU, rightV, leftInvW, rightInvW, minY, maxY);
+        rasterizeEdge(x2, y2, z2, invW2, u2, v2, c2, x0, y0, z0, invW0, u0, v0, c0, 
+                      leftX, rightX, leftColor, rightColor, leftZ, rightZ, 
+                      leftU, leftV, rightU, rightV, leftInvW, rightInvW, minY, maxY);
 
         // Заполняем треугольник построчно
-        fillTriangleRows(writer, zBuffer, x0, y0, z0, c0, x1, y1, z1, c1, x2, y2, z2, c2,
-                        leftX, rightX, leftColor, rightColor, leftZ, rightZ,
-                        triangleArea, minY, maxY, width, height);
+        fillTriangleRows(writer, zBuffer, texture, x0, y0, z0, invW0, u0, v0, c0, 
+                         x1, y1, z1, invW1, u1, v1, c1, 
+                         x2, y2, z2, invW2, u2, v2, c2,
+                         leftX, rightX, leftColor, rightColor, leftZ, rightZ,
+                         leftU, leftV, rightU, rightV, leftInvW, rightInvW,
+                         triangleArea, minY, maxY, width, height);
     }
 
     /**
@@ -232,12 +310,15 @@ public class TriangleRasterizer {
     private static void fillTriangleRows(
             PixelWriter writer,
             ZBuffer zBuffer,
-            double x0, double y0, float z0, Color c0,
-            double x1, double y1, float z1, Color c1,
-            double x2, double y2, float z2, Color c2,
+            Texture texture,
+            double x0, double y0, float z0, float invW0, float u0, float v0, Color c0,
+            double x1, double y1, float z1, float invW1, float u1, float v1, Color c1,
+            double x2, double y2, float z2, float invW2, float u2, float v2, Color c2,
             double[] leftX, double[] rightX,
             Color[] leftColor, Color[] rightColor,
             float[] leftZ, float[] rightZ,
+            float[] leftU, float[] leftV, float[] rightU, float[] rightV,
+            float[] leftInvW, float[] rightInvW,
             double triangleArea,
             int minY, int maxY,
             int width, int height) {
@@ -271,31 +352,155 @@ public class TriangleRasterizer {
             boolean useFastMode = shouldUseFastMode(pixelCount, triangleArea, width, height);
             
             // Вычисляем Z только если Z-buffer включен
-            // Используем барицентрическую интерполяцию Z согласно теории:
-            // z'pixel = αz'A + βz'B + γz'C
+            // КРИТИЧЕСКИ ВАЖНО: Используем perspective-correct interpolation
+            // Интерполируем z/w и 1/w отдельно, затем восстанавливаем z = (z/w) / (1/w)
             float leftZVal = 0.0f;
             float rightZVal = 0.0f;
             if (zBuffer != null && leftZ != null && rightZ != null) {
-                // Если Z не был установлен на ребре, используем значение из вершины
-                leftZVal = (Float.isInfinite(leftZ[idx]) || Float.isNaN(leftZ[idx])) ? z0 : leftZ[idx];
-                rightZVal = (Float.isInfinite(rightZ[idx]) || Float.isNaN(rightZ[idx])) ? z1 : rightZ[idx];
+                // Если Z не был установлен на ребре (Float.NEGATIVE_INFINITY), вычисляем его из вершин
+                // Используем барицентрические координаты для perspective-correct interpolation
+                if (leftZ[idx] == Float.NEGATIVE_INFINITY || Float.isNaN(leftZ[idx])) {
+                    // Вычисляем барицентрические координаты для левой границы
+                    double leftXVal = leftX[idx];
+                    double leftYVal = y;
+                    double invArea = 1.0 / triangleArea;
+                    double px_x2 = leftXVal - x2;
+                    double py_y2 = leftYVal - y2;
+                    double alpha = ((y1 - y2) * px_x2 + (x2 - x1) * py_y2) * invArea;
+                    double beta = ((y2 - y0) * px_x2 + (x0 - x2) * py_y2) * invArea;
+                    double gamma = 1.0 - alpha - beta;
+                    
+                    // PERSPECTIVE-CORRECT INTERPOLATION для clip space Z:
+                    // z0, z1, z2 - это clip space Z (до perspective divide)
+                    // Интерполируем clipZ/clipW и 1/clipW отдельно
+                    // clipZ/clipW = clipZ * (1/clipW) = z0 * invW0, z1 * invW1, z2 * invW2
+                    double zOverW = alpha * z0 * invW0 + beta * z1 * invW1 + gamma * z2 * invW2;
+                    double oneOverW = alpha * invW0 + beta * invW1 + gamma * invW2;
+                    // Восстанавливаем clip space Z = (clipZ/clipW) / (1/clipW)
+                    if (Math.abs(oneOverW) > 1e-10) {
+                        leftZVal = (float) (zOverW / oneOverW);
+                    } else {
+                        // Fallback: линейная интерполяция если 1/w слишком мал
+                        leftZVal = (float) (alpha * z0 + beta * z1 + gamma * z2);
+                    }
+                } else {
+                    leftZVal = leftZ[idx];
+                }
+                
+                if (rightZ[idx] == Float.NEGATIVE_INFINITY || Float.isNaN(rightZ[idx])) {
+                    // Вычисляем барицентрические координаты для правой границы
+                    double rightXVal = rightX[idx];
+                    double rightYVal = y;
+                    double invArea = 1.0 / triangleArea;
+                    double px_x2 = rightXVal - x2;
+                    double py_y2 = rightYVal - y2;
+                    double alpha = ((y1 - y2) * px_x2 + (x2 - x1) * py_y2) * invArea;
+                    double beta = ((y2 - y0) * px_x2 + (x0 - x2) * py_y2) * invArea;
+                    double gamma = 1.0 - alpha - beta;
+                    
+                    // PERSPECTIVE-CORRECT INTERPOLATION для clip space Z:
+                    // z0, z1, z2 - это clip space Z (до perspective divide)
+                    // Интерполируем clipZ/clipW и 1/clipW отдельно
+                    // clipZ/clipW = clipZ * (1/clipW) = z0 * invW0, z1 * invW1, z2 * invW2
+                    double zOverW = alpha * z0 * invW0 + beta * z1 * invW1 + gamma * z2 * invW2;
+                    double oneOverW = alpha * invW0 + beta * invW1 + gamma * invW2;
+                    // Восстанавливаем clip space Z = (clipZ/clipW) / (1/clipW)
+                    if (Math.abs(oneOverW) > 1e-10) {
+                        rightZVal = (float) (zOverW / oneOverW);
+                    } else {
+                        // Fallback: линейная интерполяция если 1/w слишком мал
+                        rightZVal = (float) (alpha * z0 + beta * z1 + gamma * z2);
+                    }
+                } else {
+                    rightZVal = rightZ[idx];
+                }
                 
                 // Проверка валидности Z перед использованием
                 if (Float.isNaN(leftZVal) || Float.isInfinite(leftZVal)) {
-                    leftZVal = z0;
+                    // Fallback: используем среднее значение Z вершин
+                    leftZVal = (z0 + z1 + z2) / 3.0f;
                 }
                 if (Float.isNaN(rightZVal) || Float.isInfinite(rightZVal)) {
-                    rightZVal = z1;
+                    // Fallback: используем среднее значение Z вершин
+                    rightZVal = (z0 + z1 + z2) / 3.0f;
+                }
+            }
+            
+            // Вычисляем UV координаты для левой и правой границ (perspective-correct)
+            float leftUVal = 0.0f, leftVVal = 0.0f, rightUVal = 0.0f, rightVVal = 0.0f;
+            float leftInvWVal = 1.0f, rightInvWVal = 1.0f;
+            if (texture != null && leftU != null && rightU != null) {
+                // Если UV не были установлены на ребре, вычисляем их из вершин
+                if (Float.isNaN(leftU[idx]) || Float.isNaN(leftInvW[idx])) {
+                    // Вычисляем барицентрические координаты для левой границы
+                    double leftXVal = leftX[idx];
+                    double leftYVal = y;
+                    double invArea = 1.0 / triangleArea;
+                    double px_x2 = leftXVal - x2;
+                    double py_y2 = leftYVal - y2;
+                    double alpha = ((y1 - y2) * px_x2 + (x2 - x1) * py_y2) * invArea;
+                    double beta = ((y2 - y0) * px_x2 + (x0 - x2) * py_y2) * invArea;
+                    double gamma = 1.0 - alpha - beta;
+                    // Perspective-correct interpolation для UV: интерполируем u/w, v/w, 1/w
+                    double uOverW = alpha * (u0 * invW0) + beta * (u1 * invW1) + gamma * (u2 * invW2);
+                    double vOverW = alpha * (v0 * invW0) + beta * (v1 * invW1) + gamma * (v2 * invW2);
+                    leftInvWVal = (float) (alpha * invW0 + beta * invW1 + gamma * invW2);
+                    if (leftInvWVal > 1e-7f) {
+                        leftUVal = (float) (uOverW / leftInvWVal);
+                        leftVVal = (float) (vOverW / leftInvWVal);
+                    } else {
+                        leftUVal = u0;
+                        leftVVal = v0;
+                    }
+                } else {
+                    leftUVal = leftU[idx];
+                    leftVVal = leftV[idx];
+                    leftInvWVal = leftInvW[idx];
+                }
+                
+                if (Float.isNaN(rightU[idx]) || Float.isNaN(rightInvW[idx])) {
+                    // Вычисляем барицентрические координаты для правой границы
+                    double rightXVal = rightX[idx];
+                    double rightYVal = y;
+                    double invArea = 1.0 / triangleArea;
+                    double px_x2 = rightXVal - x2;
+                    double py_y2 = rightYVal - y2;
+                    double alpha = ((y1 - y2) * px_x2 + (x2 - x1) * py_y2) * invArea;
+                    double beta = ((y2 - y0) * px_x2 + (x0 - x2) * py_y2) * invArea;
+                    double gamma = 1.0 - alpha - beta;
+                    // Perspective-correct interpolation для UV
+                    double uOverW = alpha * (u0 * invW0) + beta * (u1 * invW1) + gamma * (u2 * invW2);
+                    double vOverW = alpha * (v0 * invW0) + beta * (v1 * invW1) + gamma * (v2 * invW2);
+                    rightInvWVal = (float) (alpha * invW0 + beta * invW1 + gamma * invW2);
+                    if (rightInvWVal > 1e-7f) {
+                        rightUVal = (float) (uOverW / rightInvWVal);
+                        rightVVal = (float) (vOverW / rightInvWVal);
+                    } else {
+                        rightUVal = u1;
+                        rightVVal = v1;
+                    }
+                } else {
+                    rightUVal = rightU[idx];
+                    rightVVal = rightV[idx];
+                    rightInvWVal = rightInvW[idx];
                 }
             }
             
             if (useFastMode) {
-                // Быстрый режим: линейная интерполяция цвета и Z
-                fillRowFast(writer, zBuffer, xStart, xEnd, y, leftColor[idx], rightColor[idx], leftZVal, rightZVal, c0, c1);
+                // Быстрый режим: линейная интерполяция цвета, Z и UV
+                fillRowFast(writer, zBuffer, texture, xStart, xEnd, y, 
+                           leftColor[idx], rightColor[idx], 
+                           leftZVal, rightZVal,
+                           leftUVal, leftVVal, rightUVal, rightVVal,
+                           leftInvWVal, rightInvWVal,
+                           c0, c1);
             } else {
                 // Точный режим: барицентрические координаты
-                fillRowPrecise(writer, zBuffer, xStart, xEnd, y,
-                              x0, y0, z0, c0, x1, y1, z1, c1, x2, y2, z2, c2, triangleArea);
+                fillRowPrecise(writer, zBuffer, texture, xStart, xEnd, y,
+                              x0, y0, z0, invW0, u0, v0, c0, 
+                              x1, y1, z1, invW1, u1, v1, c1, 
+                              x2, y2, z2, invW2, u2, v2, c2, 
+                              triangleArea);
             }
         }
     }
@@ -314,9 +519,12 @@ public class TriangleRasterizer {
     private static void fillRowFast(
             PixelWriter writer,
             ZBuffer zBuffer,
+            Texture texture,
             int xStart, int xEnd, int y,
             Color leftC, Color rightC,
             float leftZ, float rightZ,
+            float leftU, float leftV, float rightU, float rightV,
+            float leftInvW, float rightInvW,
             Color defaultC0, Color defaultC1) {
         
         Color leftColor = (leftC != null) ? leftC : defaultC0;
@@ -324,13 +532,18 @@ public class TriangleRasterizer {
         
         int span = xEnd - xStart;
         if (span == 0) {
+            Color pixelColor = leftColor;
+            if (texture != null) {
+                // Используем текстуру для получения цвета
+                pixelColor = texture.getPixel(leftU, leftV);
+            }
             if (zBuffer == null || zBuffer.testAndSet(xStart, y, leftZ)) {
-                writer.setColor(xStart, y, leftColor);
+                writer.setColor(xStart, y, pixelColor);
             }
             return;
         }
 
-        // Предвычисляем компоненты цветов для оптимизации
+        // Предвычисляем компоненты цветов для оптимизации (если текстура не используется)
         double leftR = leftColor.getRed();
         double leftG = leftColor.getGreen();
         double leftB = leftColor.getBlue();
@@ -338,15 +551,37 @@ public class TriangleRasterizer {
         double rightG = rightColor.getGreen();
         double rightB = rightColor.getBlue();
         
-        // Линейная интерполяция цвета и Z (Z только если нужно)
+        // Линейная интерполяция цвета, Z и UV (Z и UV только если нужно)
         if (zBuffer == null) {
             // Без Z-buffer - просто рисуем все пиксели
             for (int x = xStart; x <= xEnd; x++) {
                 double t = (double) (x - xStart) / span;
-                double r = leftR * (1.0 - t) + rightR * t;
-                double g = leftG * (1.0 - t) + rightG * t;
-                double b = leftB * (1.0 - t) + rightB * t;
-                writer.setColor(x, y, new Color(r, g, b, 1.0));
+                Color pixelColor;
+                
+                if (texture != null) {
+                    // Perspective-correct interpolation для UV
+                    double invW = leftInvW * (1.0 - t) + rightInvW * t;
+                    if (invW > 1e-7) {
+                        double uOverW = (leftU * leftInvW) * (1.0 - t) + (rightU * rightInvW) * t;
+                        double vOverW = (leftV * leftInvW) * (1.0 - t) + (rightV * rightInvW) * t;
+                        float u = (float) (uOverW / invW);
+                        float v = (float) (vOverW / invW);
+                        pixelColor = texture.getPixel(u, v);
+                    } else {
+                        // Fallback: линейная интерполяция
+                        float u = (float) (leftU * (1.0 - t) + rightU * t);
+                        float v = (float) (leftV * (1.0 - t) + rightV * t);
+                        pixelColor = texture.getPixel(u, v);
+                    }
+                } else {
+                    // Интерполируем цвет
+                    double r = leftR * (1.0 - t) + rightR * t;
+                    double g = leftG * (1.0 - t) + rightG * t;
+                    double b = leftB * (1.0 - t) + rightB * t;
+                    pixelColor = new Color(r, g, b, 1.0);
+                }
+                
+                writer.setColor(x, y, pixelColor);
             }
         } else {
             // С Z-buffer - проверяем глубину
@@ -365,25 +600,48 @@ public class TriangleRasterizer {
                 // Согласно алгоритму Z-buffer: if (z_buffer(x, y) <= z) continue;
                 // testAndSet возвращает true только если z < z_buffer(x, y)
                 if (zBuffer.testAndSet(x, y, z)) {
-                    double r = leftR * (1.0 - t) + rightR * t;
-                    double g = leftG * (1.0 - t) + rightG * t;
-                    double b = leftB * (1.0 - t) + rightB * t;
-                    writer.setColor(x, y, new Color(r, g, b, 1.0));
+                    Color pixelColor;
+                    
+                    if (texture != null) {
+                        // Perspective-correct interpolation для UV
+                        double invW = leftInvW * (1.0 - t) + rightInvW * t;
+                        if (invW > 1e-7) {
+                            double uOverW = (leftU * leftInvW) * (1.0 - t) + (rightU * rightInvW) * t;
+                            double vOverW = (leftV * leftInvW) * (1.0 - t) + (rightV * rightInvW) * t;
+                            float u = (float) (uOverW / invW);
+                            float v = (float) (vOverW / invW);
+                            pixelColor = texture.getPixel(u, v);
+                        } else {
+                            // Fallback: линейная интерполяция
+                            float u = (float) (leftU * (1.0 - t) + rightU * t);
+                            float v = (float) (leftV * (1.0 - t) + rightV * t);
+                            pixelColor = texture.getPixel(u, v);
+                        }
+                    } else {
+                        // Интерполируем цвет
+                        double r = leftR * (1.0 - t) + rightR * t;
+                        double g = leftG * (1.0 - t) + rightG * t;
+                        double b = leftB * (1.0 - t) + rightB * t;
+                        pixelColor = new Color(r, g, b, 1.0);
+                    }
+                    
+                    writer.setColor(x, y, pixelColor);
                 }
             }
         }
     }
 
     /**
-     * Точное заполнение строки (барицентрические координаты).
+     * Точное заполнение строки (барицентрические координаты с perspective-correct interpolation).
      */
     private static void fillRowPrecise(
             PixelWriter writer,
             ZBuffer zBuffer,
+            Texture texture,
             int xStart, int xEnd, int y,
-            double x0, double y0, float z0, Color c0,
-            double x1, double y1, float z1, Color c1,
-            double x2, double y2, float z2, Color c2,
+            double x0, double y0, float z0, float invW0, float u0, float v0, Color c0,
+            double x1, double y1, float z1, float invW1, float u1, float v1, Color c1,
+            double x2, double y2, float z2, float invW2, float u2, float v2, Color c2,
             double triangleArea) {
         
         // Предвычисляем компоненты цветов для оптимизации
@@ -437,9 +695,20 @@ public class TriangleRasterizer {
                 double beta = (y2_y0 * px_x2 + x0_x2 * py_y2) * invArea;
                 double gamma = 1.0 - alpha - beta;
 
-                // Интерполируем Z-координату через барицентрические координаты
-                // Согласно теории: z'pixel = αz'A + βz'B + γz'C
-                float z = (float) (alpha * z0 + beta * z1 + gamma * z2);
+                // PERSPECTIVE-CORRECT INTERPOLATION для clip space Z:
+                // z0, z1, z2 - это clip space Z (до perspective divide)
+                // Интерполируем clipZ/clipW и 1/clipW отдельно
+                // clipZ/clipW = clipZ * (1/clipW) = z0 * invW0, z1 * invW1, z2 * invW2
+                double zOverW = alpha * z0 * invW0 + beta * z1 * invW1 + gamma * z2 * invW2;
+                double oneOverW = alpha * invW0 + beta * invW1 + gamma * invW2;
+                // Восстанавливаем clip space Z = (clipZ/clipW) / (1/clipW)
+                float z;
+                if (Math.abs(oneOverW) > 1e-10) {
+                    z = (float) (zOverW / oneOverW);
+                } else {
+                    // Fallback: линейная интерполяция если 1/w слишком мал
+                    z = (float) (alpha * z0 + beta * z1 + gamma * z2);
+                }
                 
                 // Проверка валидности Z перед использованием
                 if (Float.isNaN(z) || Float.isInfinite(z)) {
@@ -449,17 +718,37 @@ public class TriangleRasterizer {
                 // Согласно алгоритму Z-buffer: if (z_buffer(x, y) <= z) continue;
                 // testAndSet возвращает true только если z < z_buffer(x, y)
                 if (zBuffer.testAndSet(x, y, z)) {
-                    // Интерполируем цвет
-                    double r = alpha * c0r + beta * c1r + gamma * c2r;
-                    double g = alpha * c0g + beta * c1g + gamma * c2g;
-                    double b = alpha * c0b + beta * c1b + gamma * c2b;
+                    Color pixelColor;
+                    
+                    if (texture != null) {
+                        // Perspective-correct interpolation для UV (используем уже вычисленный oneOverW)
+                        if (Math.abs(oneOverW) > 1e-7) {
+                            double uOverW = alpha * (u0 * invW0) + beta * (u1 * invW1) + gamma * (u2 * invW2);
+                            double vOverW = alpha * (v0 * invW0) + beta * (v1 * invW1) + gamma * (v2 * invW2);
+                            float u = (float) (uOverW / oneOverW);
+                            float v = (float) (vOverW / oneOverW);
+                            pixelColor = texture.getPixel(u, v);
+                        } else {
+                            // Fallback: линейная интерполяция
+                            float u = (float) (alpha * u0 + beta * u1 + gamma * u2);
+                            float v = (float) (alpha * v0 + beta * v1 + gamma * v2);
+                            pixelColor = texture.getPixel(u, v);
+                        }
+                    } else {
+                        // Интерполируем цвет
+                        double r = alpha * c0r + beta * c1r + gamma * c2r;
+                        double g = alpha * c0g + beta * c1g + gamma * c2g;
+                        double b = alpha * c0b + beta * c1b + gamma * c2b;
 
-                    // Ограничиваем значения [0, 1]
-                    r = Math.max(0.0, Math.min(1.0, r));
-                    g = Math.max(0.0, Math.min(1.0, g));
-                    b = Math.max(0.0, Math.min(1.0, b));
+                        // Ограничиваем значения [0, 1]
+                        r = Math.max(0.0, Math.min(1.0, r));
+                        g = Math.max(0.0, Math.min(1.0, g));
+                        b = Math.max(0.0, Math.min(1.0, b));
 
-                    writer.setColor(x, y, new Color(r, g, b, 1.0));
+                        pixelColor = new Color(r, g, b, 1.0);
+                    }
+
+                    writer.setColor(x, y, pixelColor);
                 }
             }
         }
@@ -469,11 +758,13 @@ public class TriangleRasterizer {
      * Растеризует одно ребро треугольника алгоритмом Брезенхема.
      */
     private static void rasterizeEdge(
-            double x0d, double y0d, float z0, Color c0,
-            double x1d, double y1d, float z1, Color c1,
+            double x0d, double y0d, float z0, float invW0, float u0, float v0, Color c0,
+            double x1d, double y1d, float z1, float invW1, float u1, float v1, Color c1,
             double[] leftX, double[] rightX,
             Color[] leftColor, Color[] rightColor,
             float[] leftZ, float[] rightZ,
+            float[] leftU, float[] leftV, float[] rightU, float[] rightV,
+            float[] leftInvW, float[] rightInvW,
             int minY, int maxY) {
         
         int x0 = (int) Math.round(x0d);
@@ -489,7 +780,8 @@ public class TriangleRasterizer {
             if (y0 >= minY && y0 <= maxY) {
                 int idx = y0 - minY;
                 if (idx >= 0 && idx < leftX.length) {
-                    updateEdgeBounds(x0, z0, c0, leftX, rightX, leftColor, rightColor, leftZ, rightZ, idx);
+                    updateEdgeBounds(x0, z0, invW0, u0, v0, c0, leftX, rightX, leftColor, rightColor, 
+                                   leftZ, rightZ, leftU, leftV, rightU, rightV, leftInvW, rightInvW, idx);
                 }
             }
             return;
@@ -497,6 +789,8 @@ public class TriangleRasterizer {
         
         // Если Z-buffer не используется, не вычисляем Z
         boolean useZ = (leftZ != null && rightZ != null);
+        // Если текстура используется, интерполируем UV
+        boolean useUV = (leftU != null && rightU != null);
 
         int sx = (x0 < x1) ? 1 : -1;
         int sy = (y0 < y1) ? 1 : -1;
@@ -520,8 +814,21 @@ public class TriangleRasterizer {
                 if (idx >= 0 && idx < leftX.length) {
                     double t = (steps > 0) ? (double) i / steps : 0.0;
                     Color c = interpolateColor(c0, c1, t);
-                    // Линейная интерполяция Z вдоль ребра
-                    float z = useZ ? (float) (z0 * (1.0 - t) + z1 * t) : 0.0f;
+                    // PERSPECTIVE-CORRECT INTERPOLATION для clip space Z вдоль ребра:
+                    // z0, z1 - это clip space Z (до perspective divide)
+                    // Интерполируем clipZ/clipW и 1/clipW отдельно
+                    float z = 0.0f;
+                    if (useZ) {
+                        double zOverW = z0 * invW0 * (1.0 - t) + z1 * invW1 * t;
+                        double oneOverW = invW0 * (1.0 - t) + invW1 * t;
+                        // Восстанавливаем clip space Z = (clipZ/clipW) / (1/clipW)
+                        if (Math.abs(oneOverW) > 1e-10) {
+                            z = (float) (zOverW / oneOverW);
+                        } else {
+                            // Fallback: линейная интерполяция если 1/w слишком мал
+                            z = (float) (z0 * (1.0 - t) + z1 * t);
+                        }
+                    }
                     
                     // Проверка валидности Z перед использованием
                     if (useZ && (Float.isNaN(z) || Float.isInfinite(z))) {
@@ -529,7 +836,25 @@ public class TriangleRasterizer {
                         z = (i < steps / 2) ? z0 : z1;
                     }
                     
-                    updateEdgeBounds(x, z, c, leftX, rightX, leftColor, rightColor, leftZ, rightZ, idx);
+                    // Perspective-correct interpolation для UV
+                    float u = 0.0f, v = 0.0f, invW = 1.0f;
+                    if (useUV) {
+                        // Интерполируем u/w, v/w, 1/w отдельно
+                        double uOverW = (u0 * invW0) * (1.0 - t) + (u1 * invW1) * t;
+                        double vOverW = (v0 * invW0) * (1.0 - t) + (v1 * invW1) * t;
+                        invW = (float) (invW0 * (1.0 - t) + invW1 * t);
+                        if (invW > 1e-7f) {
+                            u = (float) (uOverW / invW);
+                            v = (float) (vOverW / invW);
+                        } else {
+                            // Fallback: линейная интерполяция
+                            u = (float) (u0 * (1.0 - t) + u1 * t);
+                            v = (float) (v0 * (1.0 - t) + v1 * t);
+                        }
+                    }
+                    
+                    updateEdgeBounds(x, z, invW, u, v, c, leftX, rightX, leftColor, rightColor, 
+                                   leftZ, rightZ, leftU, leftV, rightU, rightV, leftInvW, rightInvW, idx);
                 }
             }
 
@@ -573,20 +898,60 @@ public class TriangleRasterizer {
      * Обновляет границы ребра для строки.
      */
     private static void updateEdgeBounds(
-            int x, float z, Color c,
+            int x, float z, float invW, float u, float v, Color c,
             double[] leftX, double[] rightX,
             Color[] leftColor, Color[] rightColor,
             float[] leftZ, float[] rightZ,
+            float[] leftU, float[] leftV, float[] rightU, float[] rightV,
+            float[] leftInvW, float[] rightInvW,
             int idx) {
         if (x < leftX[idx]) {
             leftX[idx] = x;
             leftColor[idx] = c;
-            leftZ[idx] = z;
+            if (leftZ != null) {
+                // В нашей системе координат: большие значения Z означают ближе к камере
+                // Для левой границы берем максимальное Z (ближайший пиксель)
+                leftZ[idx] = (leftZ[idx] == Float.NEGATIVE_INFINITY) ? z : Math.max(leftZ[idx], z);
+            }
+            if (leftU != null && leftV != null && leftInvW != null) {
+                // Обновляем UV координаты для левой границы
+                if (Float.isNaN(leftU[idx])) {
+                    leftU[idx] = u;
+                    leftV[idx] = v;
+                    leftInvW[idx] = invW;
+                } else {
+                    // Если уже есть UV, берем те, которые соответствуют максимальному Z
+                    if (leftZ != null && z > leftZ[idx]) {
+                        leftU[idx] = u;
+                        leftV[idx] = v;
+                        leftInvW[idx] = invW;
+                    }
+                }
+            }
         }
         if (x > rightX[idx]) {
             rightX[idx] = x;
             rightColor[idx] = c;
-            rightZ[idx] = z;
+            if (rightZ != null) {
+                // В нашей системе координат: большие значения Z означают ближе к камере
+                // Для правой границы берем максимальное Z (ближайший пиксель)
+                rightZ[idx] = (rightZ[idx] == Float.NEGATIVE_INFINITY) ? z : Math.max(rightZ[idx], z);
+            }
+            if (rightU != null && rightV != null && rightInvW != null) {
+                // Обновляем UV координаты для правой границы
+                if (Float.isNaN(rightU[idx])) {
+                    rightU[idx] = u;
+                    rightV[idx] = v;
+                    rightInvW[idx] = invW;
+                } else {
+                    // Если уже есть UV, берем те, которые соответствуют максимальному Z
+                    if (rightZ != null && z > rightZ[idx]) {
+                        rightU[idx] = u;
+                        rightV[idx] = v;
+                        rightInvW[idx] = invW;
+                    }
+                }
+            }
         }
     }
 
@@ -617,9 +982,10 @@ public class TriangleRasterizer {
     private static void drawDegenerateTriangle(
             PixelWriter writer,
             ZBuffer zBuffer,
-            double x0, double y0, float z0, Color c0,
-            double x1, double y1, float z1, Color c1,
-            double x2, double y2, float z2, Color c2,
+            Texture texture,
+            double x0, double y0, float z0, float invW0, float u0, float v0, Color c0,
+            double x1, double y1, float z1, float invW1, float u1, float v1, Color c1,
+            double x2, double y2, float z2, float invW2, float u2, float v2, Color c2,
             int width, int height) {
         
         // Находим две самые удаленные точки
@@ -630,11 +996,11 @@ public class TriangleRasterizer {
         double maxDist = Math.max(dist01, Math.max(dist02, dist12));
         
         if (maxDist == dist01) {
-            drawLine(writer, zBuffer, x0, y0, z0, c0, x1, y1, z1, c1, width, height);
+            drawLine(writer, zBuffer, texture, x0, y0, z0, invW0, u0, v0, c0, x1, y1, z1, invW1, u1, v1, c1, width, height);
         } else if (maxDist == dist02) {
-            drawLine(writer, zBuffer, x0, y0, z0, c0, x2, y2, z2, c2, width, height);
+            drawLine(writer, zBuffer, texture, x0, y0, z0, invW0, u0, v0, c0, x2, y2, z2, invW2, u2, v2, c2, width, height);
         } else {
-            drawLine(writer, zBuffer, x1, y1, z1, c1, x2, y2, z2, c2, width, height);
+            drawLine(writer, zBuffer, texture, x1, y1, z1, invW1, u1, v1, c1, x2, y2, z2, invW2, u2, v2, c2, width, height);
         }
     }
 
@@ -653,8 +1019,9 @@ public class TriangleRasterizer {
     private static void drawLine(
             PixelWriter writer,
             ZBuffer zBuffer,
-            double x0d, double y0d, float z0, Color c0,
-            double x1d, double y1d, float z1, Color c1,
+            Texture texture,
+            double x0d, double y0d, float z0, float invW0, float u0, float v0, Color c0,
+            double x1d, double y1d, float z1, float invW1, float u1, float v1, Color c1,
             int width, int height) {
         
         int x0 = (int) Math.round(x0d);
@@ -670,13 +1037,17 @@ public class TriangleRasterizer {
         int steps = Math.max(dx, dy);
         if (steps == 0) {
             if (x0 >= 0 && x0 < width && y0 >= 0 && y0 < height) {
+                Color pixelColor = c0;
+                if (texture != null) {
+                    pixelColor = texture.getPixel(u0, v0);
+                }
                 if (zBuffer == null) {
-                    writer.setColor(x0, y0, c0);
+                    writer.setColor(x0, y0, pixelColor);
                 } else {
                     // Проверка валидности Z
                     if (!Float.isNaN(z0) && !Float.isInfinite(z0)) {
                         if (zBuffer.testAndSet(x0, y0, z0)) {
-                            writer.setColor(x0, y0, c0);
+                            writer.setColor(x0, y0, pixelColor);
                         }
                     }
                 }
@@ -691,20 +1062,49 @@ public class TriangleRasterizer {
         for (int i = 0; i <= steps; i++) {
             if (x >= 0 && x < width && y >= 0 && y < height) {
                 double t = (double) i / steps;
-                Color c = interpolateColor(c0, c1, t);
+                Color pixelColor;
+                
+                if (texture != null) {
+                    // Perspective-correct interpolation для UV
+                    double invW = invW0 * (1.0 - t) + invW1 * t;
+                    if (invW > 1e-7) {
+                        double uOverW = (u0 * invW0) * (1.0 - t) + (u1 * invW1) * t;
+                        double vOverW = (v0 * invW0) * (1.0 - t) + (v1 * invW1) * t;
+                        float u = (float) (uOverW / invW);
+                        float v = (float) (vOverW / invW);
+                        pixelColor = texture.getPixel(u, v);
+                    } else {
+                        // Fallback: линейная интерполяция
+                        float u = (float) (u0 * (1.0 - t) + u1 * t);
+                        float v = (float) (v0 * (1.0 - t) + v1 * t);
+                        pixelColor = texture.getPixel(u, v);
+                    }
+                } else {
+                    pixelColor = interpolateColor(c0, c1, t);
+                }
                 
                 if (zBuffer == null) {
                     // Без Z-buffer - просто рисуем
-                    writer.setColor(x, y, c);
+                    writer.setColor(x, y, pixelColor);
                 } else {
-                    // С Z-buffer - интерполируем Z и проверяем глубину
-                    float z = (float) (z0 * (1.0 - t) + z1 * t);
+                    // С Z-buffer - используем perspective-correct interpolation для clip space Z
+                    // z0, z1 - это clip space Z (до perspective divide)
+                    // Интерполируем clipZ/clipW и 1/clipW отдельно
+                    double zOverW = z0 * invW0 * (1.0 - t) + z1 * invW1 * t;
+                    double oneOverW = invW0 * (1.0 - t) + invW1 * t;
+                    float z;
+                    if (Math.abs(oneOverW) > 1e-10) {
+                        z = (float) (zOverW / oneOverW);
+                    } else {
+                        // Fallback: линейная интерполяция если 1/w слишком мал
+                        z = (float) (z0 * (1.0 - t) + z1 * t);
+                    }
                     
                     // Проверка валидности Z
                     if (!Float.isNaN(z) && !Float.isInfinite(z)) {
                         // Согласно алгоритму Z-buffer: if (z_buffer(x, y) <= z) continue;
                         if (zBuffer.testAndSet(x, y, z)) {
-                            writer.setColor(x, y, c);
+                            writer.setColor(x, y, pixelColor);
                         }
                     }
                 }
