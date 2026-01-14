@@ -12,6 +12,9 @@ public class RenderSettings {
     private Color fillColor = Color.LIGHTGRAY;
     private Color wireframeColor = Color.DARKGRAY;
     private boolean enableZBuffer = true; // По умолчанию включен для правильной отрисовки
+    private boolean enableBackfaceCulling = false; // Отключен - полагаемся на Z-buffer для правильной отрисовки
+    private boolean useTexture = false; // Использовать текстуру вместо статического цвета
+    private Texture texture = null; // Загруженная текстура
 
     public RenderSettings() {
     }
@@ -61,5 +64,29 @@ public class RenderSettings {
 
     public void setEnableZBuffer(boolean enableZBuffer) {
         this.enableZBuffer = enableZBuffer;
+    }
+
+    public boolean isEnableBackfaceCulling() {
+        return enableBackfaceCulling;
+    }
+
+    public void setEnableBackfaceCulling(boolean enableBackfaceCulling) {
+        this.enableBackfaceCulling = enableBackfaceCulling;
+    }
+
+    public boolean isUseTexture() {
+        return useTexture;
+    }
+
+    public void setUseTexture(boolean useTexture) {
+        this.useTexture = useTexture;
+    }
+
+    public Texture getTexture() {
+        return texture;
+    }
+
+    public void setTexture(Texture texture) {
+        this.texture = texture;
     }
 }

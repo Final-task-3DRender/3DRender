@@ -162,6 +162,15 @@ public class GuiController {
     @FXML
     private ColorPicker wireframeColorPicker;
 
+    @FXML
+    private CheckBox useTextureCheckBox;
+
+    @FXML
+    private Button loadTextureButton;
+
+    @FXML
+    private Label textureNameLabel;
+
     private com.cgvsu.render_engine.RenderSettings renderSettings = new com.cgvsu.render_engine.RenderSettings();
 
     private final List<SceneModel> sceneModels = new ArrayList<>();
@@ -803,6 +812,54 @@ public class GuiController {
             wireframeColorPicker.setOnAction(e -> {
                 renderSettings.setWireframeColor(wireframeColorPicker.getValue());
             });
+        }
+
+        if (useTextureCheckBox != null) {
+            useTextureCheckBox.setSelected(renderSettings.isUseTexture());
+            useTextureCheckBox.setOnAction(e -> {
+                renderSettings.setUseTexture(useTextureCheckBox.isSelected());
+            });
+        }
+
+        if (textureNameLabel != null) {
+            updateTextureLabel();
+        }
+    }
+
+    @FXML
+    private void onLoadTextureButtonClick() {
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle("Load Texture");
+        fileChooser.getExtensionFilters().addAll(
+            new javafx.stage.FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif")
+        );
+
+        javafx.stage.Window window = canvas.getScene().getWindow();
+        java.io.File file = fileChooser.showOpenDialog(window);
+        
+        if (file != null) {
+            try {
+                com.cgvsu.render_engine.Texture texture = com.cgvsu.render_engine.Texture.loadFromFile(file.getAbsolutePath());
+                renderSettings.setTexture(texture);
+                updateTextureLabel();
+            } catch (java.io.IOException e) {
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+                alert.setTitle("Error");
+                alert.setHeaderText("Failed to load texture");
+                alert.setContentText(e.getMessage());
+                alert.showAndWait();
+            }
+        }
+    }
+
+    private void updateTextureLabel() {
+        if (textureNameLabel != null) {
+            com.cgvsu.render_engine.Texture texture = renderSettings.getTexture();
+            if (texture != null && texture.isValid()) {
+                textureNameLabel.setText("Texture: " + texture.getWidth() + "x" + texture.getHeight());
+            } else {
+                textureNameLabel.setText("No texture loaded");
+            }
         }
     }
 
