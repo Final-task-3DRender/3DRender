@@ -3,16 +3,41 @@ package com.cgvsu.math;
 import java.util.Arrays;
 
 /**
- * Класс для работы с матрицами 4×4
+ * Класс для работы с матрицами 4×4 в однородных координатах.
+ * 
+ * <p>Используется для аффинных преобразований в 3D пространстве:
+ * <ul>
+ *   <li>Перенос (translation)</li>
+ *   <li>Вращение (rotation)</li>
+ *   <li>Масштабирование (scaling)</li>
+ *   <li>Проекции (projection)</li>
+ * </ul>
+ * 
+ * <p>Матрица хранится в row-major порядке (по строкам).
+ * Поддерживает умножение на векторы-столбцы.
+ * 
+ * <p>Все операции создают новые матрицы, исходные матрицы не изменяются.
+ * 
+ * @author CGVSU Team
+ * @version 1.0
  */
 public class Matrix4f {
+    
+    /** Размер матрицы (4x4) */
     private static final int SIZE = 4;
+    
+    /** Эпсилон для сравнения чисел с плавающей точкой */
     private static final float EPSILON = 1e-7f;
     
+    /**
+     * Внутреннее хранилище матрицы в виде одномерного массива.
+     * Элементы хранятся в row-major порядке: [row0col0, row0col1, ..., row3col3]
+     */
     private final float[] matrix;
 
     /**
-     * Создает единичную матрицу
+     * Создает единичную матрицу 4×4.
+     * Единичная матрица не изменяет векторы при умножении.
      */
     public Matrix4f() {
         matrix = new float[SIZE * SIZE];
@@ -20,8 +45,9 @@ public class Matrix4f {
     }
 
     /**
-     * Создает нулевую матрицу
-     * @return нулевая матрица
+     * Создает нулевую матрицу 4×4 (все элементы равны 0).
+     * 
+     * @return новая нулевая матрица
      */
     public static Matrix4f zero() {
         Matrix4f m = new Matrix4f();
@@ -30,16 +56,21 @@ public class Matrix4f {
     }
 
     /**
-     * Создает единичную матрицу
-     * @return единичная матрица
+     * Создает единичную матрицу 4×4.
+     * 
+     * @return новая единичная матрица
      */
     public static Matrix4f identity() {
         return new Matrix4f();
     }
 
     /**
-     * Создает матрицу из двумерного массива
-     * @param m двумерный массив 4×4
+     * Создает матрицу из двумерного массива.
+     * 
+     * <p>Массив должен быть размером 4×4. Элементы копируются в row-major порядке.
+     * 
+     * @param m двумерный массив 4×4 (не должен быть null)
+     * @throws IllegalArgumentException если массив null или имеет неправильный размер
      */
     public Matrix4f(float[][] m) {
         if (m == null || m.length != SIZE) {
@@ -59,8 +90,13 @@ public class Matrix4f {
     }
 
     /**
-     * Создает матрицу из одномерного массива
-     * @param m одномерный массив из 16 элементов
+     * Создает матрицу из одномерного массива.
+     * 
+     * <p>Массив должен содержать 16 элементов в row-major порядке:
+     * [row0col0, row0col1, row0col2, row0col3, row1col0, ...]
+     * 
+     * @param m одномерный массив из 16 элементов (не должен быть null)
+     * @throws IllegalArgumentException если массив null или имеет неправильный размер
      */
     public Matrix4f(float[] m) {
         if (m == null || m.length != SIZE * SIZE) {
@@ -83,8 +119,12 @@ public class Matrix4f {
     }
 
     /**
-     * Создает копию матрицы
-     * @param other исходная матрица
+     * Создает глубокую копию матрицы.
+     * 
+     * <p>Все элементы копируются, изменения в новой матрице не влияют на исходную.
+     * 
+     * @param other исходная матрица для копирования (не должна быть null)
+     * @throws IllegalArgumentException если other равен null
      */
     public Matrix4f(Matrix4f other) {
         requireNonNull(other, "Matrix");
@@ -93,7 +133,10 @@ public class Matrix4f {
     }
 
     /**
-     * Устанавливает единичную матрицу
+     * Устанавливает матрицу в единичную.
+     * 
+     * <p>Единичная матрица имеет единицы на главной диагонали и нули в остальных местах.
+     * При умножении на вектор не изменяет его.
      */
     public void setIdentity() {
         setZero();
@@ -103,7 +146,7 @@ public class Matrix4f {
     }
 
     /**
-     * Устанавливает нулевую матрицу
+     * Устанавливает все элементы матрицы в ноль.
      */
     public void setZero() {
         Arrays.fill(matrix, 0.0f);
@@ -118,10 +161,12 @@ public class Matrix4f {
     }
 
     /**
-     * Получить значение элемента матрицы
+     * Получает значение элемента матрицы по индексам строки и столбца.
+     * 
      * @param row номер строки (0-3)
      * @param col номер столбца (0-3)
-     * @return значение элемента
+     * @return значение элемента матрицы
+     * @throws IndexOutOfBoundsException если индексы выходят за границы [0, 3]
      */
     public float get(int row, int col) {
         validateIndices(row, col);
@@ -129,10 +174,12 @@ public class Matrix4f {
     }
 
     /**
-     * Установить значение элемента матрицы
+     * Устанавливает значение элемента матрицы по индексам строки и столбца.
+     * 
      * @param row номер строки (0-3)
      * @param col номер столбца (0-3)
-     * @param value новое значение
+     * @param value новое значение элемента
+     * @throws IndexOutOfBoundsException если индексы выходят за границы [0, 3]
      */
     public void set(int row, int col, float value) {
         validateIndices(row, col);
@@ -140,9 +187,13 @@ public class Matrix4f {
     }
 
     /**
-     * Сложение матриц
-     * @param other другая матрица
-     * @return новая матрица
+     * Выполняет сложение матриц (покомпонентно).
+     * 
+     * <p>Создает новую матрицу, исходные матрицы не изменяются.
+     * 
+     * @param other матрица для сложения (не должна быть null)
+     * @return новая матрица - результат сложения
+     * @throws IllegalArgumentException если other равен null
      */
     public Matrix4f add(Matrix4f other) {
         requireNonNull(other, "Matrix");
@@ -154,9 +205,13 @@ public class Matrix4f {
     }
 
     /**
-     * Вычитание матриц
-     * @param other другая матрица
-     * @return новая матрица
+     * Выполняет вычитание матриц (покомпонентно).
+     * 
+     * <p>Создает новую матрицу, исходные матрицы не изменяются.
+     * 
+     * @param other матрица для вычитания (не должна быть null)
+     * @return новая матрица - результат вычитания
+     * @throws IllegalArgumentException если other равен null
      */
     public Matrix4f subtract(Matrix4f other) {
         requireNonNull(other, "Matrix");
@@ -168,9 +223,17 @@ public class Matrix4f {
     }
 
     /**
-     * Умножение матриц
-     * @param other другая матрица
-     * @return новая матрица
+     * Выполняет умножение матриц.
+     * 
+     * <p>Умножает текущую матрицу на другую: result = this * other.
+     * Создает новую матрицу, исходные матрицы не изменяются.
+     * 
+     * <p>Для векторов-столбцов порядок умножения важен:
+     * (A * B) * v = A * (B * v) означает, что сначала применяется B, потом A.
+     * 
+     * @param other матрица для умножения справа (не должна быть null)
+     * @return новая матрица - результат умножения
+     * @throws IllegalArgumentException если other равен null
      */
     public Matrix4f multiply(Matrix4f other) {
         requireNonNull(other, "Matrix");
@@ -188,9 +251,16 @@ public class Matrix4f {
     }
 
     /**
-     * Умножение матрицы на вектор (вектор-столбец)
-     * @param vector вектор
-     * @return новый вектор
+     * Умножает матрицу на вектор-столбец.
+     * 
+     * <p>Выполняет стандартное матричное умножение: result = matrix * vector.
+     * Создает новый вектор, исходный вектор не изменяется.
+     * 
+     * <p>Формула: result[i] = sum(matrix[i][j] * vector[j]) для всех j.
+     * 
+     * @param vector вектор-столбец для умножения (не должен быть null)
+     * @return новый вектор - результат умножения
+     * @throws IllegalArgumentException если vector равен null
      */
     public Vector4f multiply(Vector4f vector) {
         requireNonNull(vector, "Vector");
@@ -206,9 +276,14 @@ public class Matrix4f {
     }
 
     /**
-     * Умножение матрицы на трехмерный вектор (добавляется w=1)
-     * @param vector трехмерный вектор
-     * @return новый четырехмерный вектор
+     * Умножает матрицу на трехмерный вектор, преобразуя его в однородные координаты.
+     * 
+     * <p>Автоматически добавляет w=1 к трехмерному вектору перед умножением.
+     * Используется для преобразования точек (не направлений) в 3D пространстве.
+     * 
+     * @param vector трехмерный вектор (точка) для умножения (не должен быть null)
+     * @return новый четырехмерный вектор - результат умножения
+     * @throws IllegalArgumentException если vector равен null
      */
     public Vector4f multiply(Vector3f vector) {
         if (vector == null) {
@@ -229,7 +304,11 @@ public class Matrix4f {
     }
 
     /**
-     * Транспонирование матрицы
+     * Транспонирует матрицу (меняет строки и столбцы местами).
+     * 
+     * <p>Создает новую матрицу, исходная матрица не изменяется.
+     * Транспонированная матрица: result[i][j] = this[j][i].
+     * 
      * @return новая транспонированная матрица
      */
     public Matrix4f transpose() {
@@ -248,7 +327,11 @@ public class Matrix4f {
     }
 
     /**
-     * Вычисление определителя
+     * Вычисляет определитель матрицы 4×4.
+     * 
+     * <p>Использует разложение по первой строке (метод Лапласа).
+     * Определитель используется для проверки обратимости матрицы.
+     * 
      * @return определитель матрицы
      */
     public float determinant() {
@@ -284,8 +367,15 @@ public class Matrix4f {
     }
 
     /**
-     * Вычисление обратной матрицы
-     * @return обратная матрица
+     * Вычисляет обратную матрицу.
+     * 
+     * <p>Использует метод присоединенной матрицы (adjugate matrix).
+     * Обратная матрица A^(-1) удовлетворяет: A * A^(-1) = I (единичная матрица).
+     * 
+     * <p>Матрица должна быть обратимой (определитель не равен нулю).
+     * 
+     * @return новая обратная матрица
+     * @throws ArithmeticException если матрица вырожденная (определитель равен нулю)
      */
     public Matrix4f inverse() {
         float det = determinant();

@@ -128,7 +128,12 @@ public class Texture {
     }
     
     /**
-     * Интерполирует цвет между двумя цветами.
+     * Линейно интерполирует цвет между двумя цветами.
+     * 
+     * @param c0 первый цвет
+     * @param c1 второй цвет
+     * @param t параметр интерполяции (0.0 = c0, 1.0 = c1)
+     * @return интерполированный цвет
      */
     private Color interpolateColor(Color c0, Color c1, float t) {
         double r = c0.getRed() * (1.0 - t) + c1.getRed() * t;
@@ -138,16 +143,28 @@ public class Texture {
         return new Color(r, g, b, a);
     }
     
+    /**
+     * Возвращает ширину текстуры в пикселях.
+     * 
+     * @return ширина текстуры
+     */
     public int getWidth() {
         return width;
     }
     
+    /**
+     * Возвращает высоту текстуры в пикселях.
+     * 
+     * @return высота текстуры
+     */
     public int getHeight() {
         return height;
     }
     
     /**
-     * Проверяет, загружена ли текстура.
+     * Проверяет, загружена ли текстура корректно.
+     * 
+     * @return true если текстура валидна (не null, размеры больше 0)
      */
     public boolean isValid() {
         return pixels != null && width > 0 && height > 0;

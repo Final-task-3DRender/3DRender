@@ -52,7 +52,27 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import com.cgvsu.ui.SceneModel;
+import com.cgvsu.ui.FileOperationsHandler;
+import com.cgvsu.ui.ModelTransformController;
 
+/**
+ * Главный контроллер JavaFX приложения для просмотра и редактирования 3D моделей.
+ * 
+ * <p>Координирует работу всех компонентов приложения:
+ * <ul>
+ *   <li>Управление моделями в сцене (загрузка, сохранение, выбор)</li>
+ *   <li>Трансформации моделей (позиция, вращение, масштаб)</li>
+ *   <li>Управление камерой (мышь и клавиатура)</li>
+ *   <li>Настройки рендеринга (wireframe, filled, текстуры, Z-buffer)</li>
+ *   <li>Цикл рендеринга (анимация)</li>
+ * </ul>
+ * 
+ * <p>Использует FXML для описания интерфейса (gui.fxml).
+ * 
+ * @author CGVSU Team
+ * @version 1.0
+ */
 public class GuiController {
     
     private Vector3f initialCameraPosition = new Vector3f(0, 0, 100);
@@ -129,19 +149,9 @@ public class GuiController {
     @FXML
     private Label sceneModelInfoLabel, scenePositionLabel, sceneRotationLabel, sceneScaleLabel;
 
-    private static class SceneModel {
-        private final Model model;
-        private final ModelTransform transform;
-        private final String name;
-        private boolean active;
-
-        private SceneModel(Model model, String name) {
-            this.model = model;
-            this.transform = new ModelTransform();
-            this.name = name;
-            this.active = true;
-        }
-    }
+    private final List<SceneModel> sceneModels = new ArrayList<>();
+    private final ObservableList<String> modelNames = FXCollections.observableArrayList();
+    private int selectedModelIndex = -1;
 
     @FXML
     private ListView<String> modelsListView;
@@ -171,17 +181,8 @@ public class GuiController {
     private Label textureNameLabel;
 
     private com.cgvsu.render_engine.RenderSettings renderSettings = new com.cgvsu.render_engine.RenderSettings();
-
-    private final List<SceneModel> sceneModels = new ArrayList<>();
-    private final ObservableList<String> modelNames = FXCollections.observableArrayList();
-    private int selectedModelIndex = -1;
-
-    private enum TransformMode { MOVE, ROTATE, SCALE }
-    private TransformMode currentMode = TransformMode.MOVE;
-
-    private final float TRANSFORM_STEP = 1.0f;
-    private final float ROTATION_STEP = 5.0f;
-    private final float SCALE_STEP = 0.1f;
+    
+    private ModelTransformController transformController;
 
     private Camera camera = new Camera(
             new Vector3f(initialCameraPosition),
@@ -220,12 +221,12 @@ public class GuiController {
 
             if (!sceneModels.isEmpty()) {
                 for (SceneModel sceneModel : sceneModels) {
-                    if (sceneModel != null && sceneModel.active) {
+                    if (sceneModel != null && sceneModel.isActive()) {
                         RenderEngine.render(
                                 canvas.getGraphicsContext2D(),
                                 camera,
-                                sceneModel.model,
-                                sceneModel.transform,
+                                sceneModel.getModel(),
+                                sceneModel.getTransform(),
                                 (int) width,
                                 (int) height,
                                 renderSettings
@@ -252,163 +253,50 @@ public class GuiController {
         updateTransformUI();
     }
 
+    /**
+     * Настраивает UI для управления трансформациями модели.
+     * 
+     * <p>Инициализирует ModelTransformController с UI элементами.
+     */
     private void setupTransformUI() {
-        setupTextField(positionXField, () -> {
-            try {
-                float value = Float.parseFloat(positionXField.getText());
-                ModelTransform modelTransform = getCurrentTransform();
-                if (modelTransform != null) {
-                    modelTransform.setPosition(new Vector3f(value, modelTransform.getPosition().y, modelTransform.getPosition().z));
-                }
-                updateTransformUI();
-            } catch (NumberFormatException e) {
-                updateTransformFields();
-            }
-        });
-        setupTextField(positionYField, () -> {
-            try {
-                float value = Float.parseFloat(positionYField.getText());
-                ModelTransform modelTransform = getCurrentTransform();
-                if (modelTransform != null) {
-                    modelTransform.setPosition(new Vector3f(modelTransform.getPosition().x, value, modelTransform.getPosition().z));
-                }
-                updateTransformUI();
-            } catch (NumberFormatException e) {
-                updateTransformFields();
-            }
-        });
-        setupTextField(positionZField, () -> {
-            try {
-                float value = Float.parseFloat(positionZField.getText());
-                ModelTransform modelTransform = getCurrentTransform();
-                if (modelTransform != null) {
-                    modelTransform.setPosition(new Vector3f(modelTransform.getPosition().x, modelTransform.getPosition().y, value));
-                }
-                updateTransformUI();
-            } catch (NumberFormatException e) {
-                updateTransformFields();
-            }
-        });
-
-        setupTextField(rotationXField, () -> {
-            try {
-                float value = Float.parseFloat(rotationXField.getText());
-                ModelTransform modelTransform = getCurrentTransform();
-                if (modelTransform != null) {
-                    modelTransform.setRotation(new Vector3f(value, modelTransform.getRotation().y, modelTransform.getRotation().z));
-                }
-                updateTransformUI();
-            } catch (NumberFormatException e) {
-                updateTransformFields();
-            }
-        });
-        setupTextField(rotationYField, () -> {
-            try {
-                float value = Float.parseFloat(rotationYField.getText());
-                ModelTransform modelTransform = getCurrentTransform();
-                if (modelTransform != null) {
-                    modelTransform.setRotation(new Vector3f(modelTransform.getRotation().x, value, modelTransform.getRotation().z));
-                }
-                updateTransformUI();
-            } catch (NumberFormatException e) {
-                updateTransformFields();
-            }
-        });
-        setupTextField(rotationZField, () -> {
-            try {
-                float value = Float.parseFloat(rotationZField.getText());
-                ModelTransform modelTransform = getCurrentTransform();
-                if (modelTransform != null) {
-                    modelTransform.setRotation(new Vector3f(modelTransform.getRotation().x, modelTransform.getRotation().y, value));
-                }
-                updateTransformUI();
-            } catch (NumberFormatException e) {
-                updateTransformFields();
-            }
-        });
-
-        setupTextField(scaleXField, () -> {
-            try {
-                float value = Float.parseFloat(scaleXField.getText());
-                if (value > 0) {
-                    ModelTransform modelTransform = getCurrentTransform();
-                    if (modelTransform != null) {
-                        modelTransform.setScale(new Vector3f(value, modelTransform.getScale().y, modelTransform.getScale().z));
-                    }
-                    updateTransformUI();
-                }
-            } catch (NumberFormatException e) {
-                updateTransformFields();
-            }
-        });
-        setupTextField(scaleYField, () -> {
-            try {
-                float value = Float.parseFloat(scaleYField.getText());
-                if (value > 0) {
-                    ModelTransform modelTransform = getCurrentTransform();
-                    if (modelTransform != null) {
-                        modelTransform.setScale(new Vector3f(modelTransform.getScale().x, value, modelTransform.getScale().z));
-                    }
-                    updateTransformUI();
-                }
-            } catch (NumberFormatException e) {
-                updateTransformFields();
-            }
-        });
-        setupTextField(scaleZField, () -> {
-            try {
-                float value = Float.parseFloat(scaleZField.getText());
-                if (value > 0) {
-                    ModelTransform modelTransform = getCurrentTransform();
-                    if (modelTransform != null) {
-                        modelTransform.setScale(new Vector3f(modelTransform.getScale().x, modelTransform.getScale().y, value));
-                    }
-                    updateTransformUI();
-                }
-            } catch (NumberFormatException e) {
-                updateTransformFields();
-            }
-        });
-
-        setupIncDecButtons(positionXDecButton, positionXIncButton, () -> adjustPositionX(-TRANSFORM_STEP), () -> adjustPositionX(TRANSFORM_STEP));
-        setupIncDecButtons(positionYDecButton, positionYIncButton, () -> adjustPositionY(-TRANSFORM_STEP), () -> adjustPositionY(TRANSFORM_STEP));
-        setupIncDecButtons(positionZDecButton, positionZIncButton, () -> adjustPositionZ(-TRANSFORM_STEP), () -> adjustPositionZ(TRANSFORM_STEP));
-
-        setupIncDecButtons(rotationXDecButton, rotationXIncButton, () -> adjustRotationX(-ROTATION_STEP), () -> adjustRotationX(ROTATION_STEP));
-        setupIncDecButtons(rotationYDecButton, rotationYIncButton, () -> adjustRotationY(-ROTATION_STEP), () -> adjustRotationY(ROTATION_STEP));
-        setupIncDecButtons(rotationZDecButton, rotationZIncButton, () -> adjustRotationZ(-ROTATION_STEP), () -> adjustRotationZ(ROTATION_STEP));
-
-        setupIncDecButtons(scaleXDecButton, scaleXIncButton, () -> adjustScaleX(-SCALE_STEP), () -> adjustScaleX(SCALE_STEP));
-        setupIncDecButtons(scaleYDecButton, scaleYIncButton, () -> adjustScaleY(-SCALE_STEP), () -> adjustScaleY(SCALE_STEP));
-        setupIncDecButtons(scaleZDecButton, scaleZIncButton, () -> adjustScaleZ(-SCALE_STEP), () -> adjustScaleZ(SCALE_STEP));
-
-        handleSetMoveMode();
-    }
-
-    private void setupTextField(TextField field, Runnable onAction) {
-        if (field != null) {
-            field.focusedProperty().addListener((observable, oldValue, newValue) -> {
-                if (!newValue && field != null) { // Lost focus
-                    onAction.run();
-                }
-            });
+        transformController = new ModelTransformController(
+            positionXField, positionYField, positionZField,
+            positionXDecButton, positionXIncButton,
+            positionYDecButton, positionYIncButton,
+            positionZDecButton, positionZIncButton,
+            rotationXField, rotationYField, rotationZField,
+            rotationXDecButton, rotationXIncButton,
+            rotationYDecButton, rotationYIncButton,
+            rotationZDecButton, rotationZIncButton,
+            scaleXField, scaleYField, scaleZField,
+            scaleXDecButton, scaleXIncButton,
+            scaleYDecButton, scaleYIncButton,
+            scaleZDecButton, scaleZIncButton,
+            moveModeButton, rotateModeButton, scaleModeButton,
+            currentModeLabel
+        );
+        
+        ModelTransform currentTransform = getCurrentTransform();
+        if (currentTransform != null) {
+            transformController.setup(currentTransform, this::updateTransformUI);
         }
     }
 
-    private void setupIncDecButtons(Button decButton, Button incButton, Runnable decAction, Runnable incAction) {
-        if (decButton != null) {
-            decButton.setOnAction(e -> decAction.run());
-        }
-        if (incButton != null) {
-            incButton.setOnAction(e -> incAction.run());
-        }
-    }
-
+    /**
+     * Возвращает трансформации текущей выбранной модели.
+     * 
+     * @return трансформации модели или null, если модель не выбрана
+     */
     private ModelTransform getCurrentTransform() {
         SceneModel current = getSelectedSceneModel();
-        return current != null ? current.transform : null;
+        return current != null ? current.getTransform() : null;
     }
 
+    /**
+     * Возвращает текущую выбранную модель в сцене.
+     * 
+     * @return выбранная модель или null, если модель не выбрана
+     */
     private SceneModel getSelectedSceneModel() {
         if (selectedModelIndex < 0 || selectedModelIndex >= sceneModels.size()) {
             return null;
@@ -416,141 +304,26 @@ public class GuiController {
         return sceneModels.get(selectedModelIndex);
     }
 
-    private void adjustPositionX(float delta) {
-        ModelTransform modelTransform = getCurrentTransform();
-        if (modelTransform == null) return;
-        Vector3f pos = modelTransform.getPosition();
-        modelTransform.setPosition(new Vector3f(pos.x + delta, pos.y, pos.z));
-        updateTransformUI();
-    }
-
-    private void adjustPositionY(float delta) {
-        ModelTransform modelTransform = getCurrentTransform();
-        if (modelTransform == null) return;
-        Vector3f pos = modelTransform.getPosition();
-        modelTransform.setPosition(new Vector3f(pos.x, pos.y + delta, pos.z));
-        updateTransformUI();
-    }
-
-    private void adjustPositionZ(float delta) {
-        ModelTransform modelTransform = getCurrentTransform();
-        if (modelTransform == null) return;
-        Vector3f pos = modelTransform.getPosition();
-        modelTransform.setPosition(new Vector3f(pos.x, pos.y, pos.z + delta));
-        updateTransformUI();
-    }
-
-    private void adjustRotationX(float delta) {
-        ModelTransform modelTransform = getCurrentTransform();
-        if (modelTransform == null) return;
-        Vector3f rot = modelTransform.getRotation();
-        modelTransform.setRotation(new Vector3f(rot.x + delta, rot.y, rot.z));
-        updateTransformUI();
-    }
-
-    private void adjustRotationY(float delta) {
-        ModelTransform modelTransform = getCurrentTransform();
-        if (modelTransform == null) return;
-        Vector3f rot = modelTransform.getRotation();
-        modelTransform.setRotation(new Vector3f(rot.x, rot.y + delta, rot.z));
-        updateTransformUI();
-    }
-
-    private void adjustRotationZ(float delta) {
-        ModelTransform modelTransform = getCurrentTransform();
-        if (modelTransform == null) return;
-        Vector3f rot = modelTransform.getRotation();
-        modelTransform.setRotation(new Vector3f(rot.x, rot.y, rot.z + delta));
-        updateTransformUI();
-    }
-
-    private void adjustScaleX(float delta) {
-        ModelTransform modelTransform = getCurrentTransform();
-        if (modelTransform == null) return;
-        Vector3f scale = modelTransform.getScale();
-        float newValue = Math.max(0.01f, scale.x + delta);
-        modelTransform.setScale(new Vector3f(newValue, scale.y, scale.z));
-        updateTransformUI();
-    }
-
-    private void adjustScaleY(float delta) {
-        ModelTransform modelTransform = getCurrentTransform();
-        if (modelTransform == null) return;
-        Vector3f scale = modelTransform.getScale();
-        float newValue = Math.max(0.01f, scale.y + delta);
-        modelTransform.setScale(new Vector3f(scale.x, newValue, scale.z));
-        updateTransformUI();
-    }
-
-    private void adjustScaleZ(float delta) {
-        ModelTransform modelTransform = getCurrentTransform();
-        if (modelTransform == null) return;
-        Vector3f scale = modelTransform.getScale();
-        float newValue = Math.max(0.01f, scale.z + delta);
-        modelTransform.setScale(new Vector3f(scale.x, scale.y, newValue));
-        updateTransformUI();
-    }
-
+    /**
+     * Обновляет UI трансформаций и информацию о сцене.
+     */
     private void updateTransformUI() {
-        updateTransformFields();
+        ModelTransform currentTransform = getCurrentTransform();
+        if (transformController != null && currentTransform != null) {
+            transformController.updateFields(currentTransform);
+        }
         updateSceneInfo();
     }
 
-    private void updateTransformFields() {
-        ModelTransform modelTransform = getCurrentTransform();
-        if (modelTransform == null) {
-            if (positionXField != null && !positionXField.isFocused()) positionXField.setText("");
-            if (positionYField != null && !positionYField.isFocused()) positionYField.setText("");
-            if (positionZField != null && !positionZField.isFocused()) positionZField.setText("");
-            if (rotationXField != null && !rotationXField.isFocused()) rotationXField.setText("");
-            if (rotationYField != null && !rotationYField.isFocused()) rotationYField.setText("");
-            if (rotationZField != null && !rotationZField.isFocused()) rotationZField.setText("");
-            if (scaleXField != null && !scaleXField.isFocused()) scaleXField.setText("");
-            if (scaleYField != null && !scaleYField.isFocused()) scaleYField.setText("");
-            if (scaleZField != null && !scaleZField.isFocused()) scaleZField.setText("");
-            return;
-        }
-
-        Vector3f pos = modelTransform.getPosition();
-        if (positionXField != null && !positionXField.isFocused()) {
-            positionXField.setText(String.format("%.2f", pos.x));
-        }
-        if (positionYField != null && !positionYField.isFocused()) {
-            positionYField.setText(String.format("%.2f", pos.y));
-        }
-        if (positionZField != null && !positionZField.isFocused()) {
-            positionZField.setText(String.format("%.2f", pos.z));
-        }
-
-        Vector3f rot = modelTransform.getRotation();
-        if (rotationXField != null && !rotationXField.isFocused()) {
-            rotationXField.setText(String.format("%.1f", rot.x));
-        }
-        if (rotationYField != null && !rotationYField.isFocused()) {
-            rotationYField.setText(String.format("%.1f", rot.y));
-        }
-        if (rotationZField != null && !rotationZField.isFocused()) {
-            rotationZField.setText(String.format("%.1f", rot.z));
-        }
-
-        Vector3f scale = modelTransform.getScale();
-        if (scaleXField != null && !scaleXField.isFocused()) {
-            scaleXField.setText(String.format("%.2f", scale.x));
-        }
-        if (scaleYField != null && !scaleYField.isFocused()) {
-            scaleYField.setText(String.format("%.2f", scale.y));
-        }
-        if (scaleZField != null && !scaleZField.isFocused()) {
-            scaleZField.setText(String.format("%.2f", scale.z));
-        }
-    }
-
+    /**
+     * Обновляет информацию о выбранной модели в UI.
+     */
     private void updateSceneInfo() {
         SceneModel current = getSelectedSceneModel();
 
         if (scenePositionLabel != null) {
             if (current != null) {
-                Vector3f pos = current.transform.getPosition();
+                Vector3f pos = current.getTransform().getPosition();
                 scenePositionLabel.setText(String.format("Position: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z));
             } else {
                 scenePositionLabel.setText("Position: —");
@@ -558,7 +331,7 @@ public class GuiController {
         }
         if (sceneRotationLabel != null) {
             if (current != null) {
-                Vector3f rot = current.transform.getRotation();
+                Vector3f rot = current.getTransform().getRotation();
                 sceneRotationLabel.setText(String.format("Rotation: (%.1f°, %.1f°, %.1f°)", rot.x, rot.y, rot.z));
             } else {
                 sceneRotationLabel.setText("Rotation: —");
@@ -566,7 +339,7 @@ public class GuiController {
         }
         if (sceneScaleLabel != null) {
             if (current != null) {
-                Vector3f scale = current.transform.getScale();
+                Vector3f scale = current.getTransform().getScale();
                 sceneScaleLabel.setText(String.format("Scale: (%.2f, %.2f, %.2f)", scale.x, scale.y, scale.z));
             } else {
                 sceneScaleLabel.setText("Scale: —");
@@ -574,63 +347,61 @@ public class GuiController {
         }
         if (sceneModelInfoLabel != null) {
             if (current != null) {
-                int vertexCount = current.model.vertices.size();
-                int polygonCount = current.model.polygons.size();
+                int vertexCount = current.getModel().vertices.size();
+                int polygonCount = current.getModel().polygons.size();
                 sceneModelInfoLabel.setText(String.format("Model: %s\nVertices: %d\nPolygons: %d",
-                        current.name, vertexCount, polygonCount));
+                        current.getName(), vertexCount, polygonCount));
             } else {
                 sceneModelInfoLabel.setText("No model selected");
             }
         }
     }
 
+    /**
+     * Сбрасывает трансформации текущей модели к начальным значениям.
+     */
     @FXML
     private void handleResetTransform() {
         ModelTransform modelTransform = getCurrentTransform();
-        if (modelTransform == null) return;
-        modelTransform.reset();
-        updateTransformUI();
+        if (modelTransform != null && transformController != null) {
+            transformController.resetTransform(modelTransform);
+            updateTransformUI();
+        }
     }
 
+    /**
+     * Устанавливает режим трансформации: перенос (MOVE).
+     */
     @FXML
     private void handleSetMoveMode() {
-        currentMode = TransformMode.MOVE;
-        if (currentModeLabel != null) {
-            currentModeLabel.setText("Mode: Move");
+        if (transformController != null) {
+            transformController.setMode(ModelTransformController.TransformMode.MOVE);
         }
-        updateModeButtons();
     }
 
+    /**
+     * Устанавливает режим трансформации: вращение (ROTATE).
+     */
     @FXML
     private void handleSetRotateMode() {
-        currentMode = TransformMode.ROTATE;
-        if (currentModeLabel != null) {
-            currentModeLabel.setText("Mode: Rotate");
+        if (transformController != null) {
+            transformController.setMode(ModelTransformController.TransformMode.ROTATE);
         }
-        updateModeButtons();
     }
 
+    /**
+     * Устанавливает режим трансформации: масштабирование (SCALE).
+     */
     @FXML
     private void handleSetScaleMode() {
-        currentMode = TransformMode.SCALE;
-        if (currentModeLabel != null) {
-            currentModeLabel.setText("Mode: Scale");
-        }
-        updateModeButtons();
-    }
-
-    private void updateModeButtons() {
-        if (moveModeButton != null) {
-            moveModeButton.setStyle(currentMode == TransformMode.MOVE ? "-fx-background-color: #4CAF50;" : "");
-        }
-        if (rotateModeButton != null) {
-            rotateModeButton.setStyle(currentMode == TransformMode.ROTATE ? "-fx-background-color: #4CAF50;" : "");
-        }
-        if (scaleModeButton != null) {
-            scaleModeButton.setStyle(currentMode == TransformMode.SCALE ? "-fx-background-color: #4CAF50;" : "");
+        if (transformController != null) {
+            transformController.setMode(ModelTransformController.TransformMode.SCALE);
         }
     }
 
+    /**
+     * Настраивает горячие клавиши для меню.
+     */
     private void setupMenuAccelerators() {
         if (openMenuItem != null) {
             openMenuItem.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN));
@@ -649,6 +420,10 @@ public class GuiController {
         }
     }
 
+    /**
+     * Обновляет информацию в строке состояния (status bar).
+     * Отображает позицию камеры, цель камеры и информацию о выбранной модели.
+     */
     private void updateStatusBar() {
         Vector3f pos = camera.getPosition();
         Vector3f target = camera.getTarget();
@@ -657,10 +432,10 @@ public class GuiController {
 
         SceneModel current = getSelectedSceneModel();
         if (current != null) {
-            int vertexCount = current.model.vertices.size();
-            int polygonCount = current.model.polygons.size();
+            int vertexCount = current.getModel().vertices.size();
+            int polygonCount = current.getModel().polygons.size();
             modelInfoLabel.setText(String.format("Model: %s | Vertices: %d | Polygons: %d",
-                    current.name, vertexCount, polygonCount));
+                    current.getName(), vertexCount, polygonCount));
         } else {
             if (sceneModels.isEmpty()) {
                 modelInfoLabel.setText("No models in scene");
@@ -670,6 +445,12 @@ public class GuiController {
         }
     }
 
+    /**
+     * Обрабатывает загрузку модели из файла.
+     * 
+     * <p>Показывает диалог выбора файла, загружает модель, выполняет триангуляцию
+     * и пересчет нормалей, затем добавляет модель в сцену.
+     */
     @FXML
     private void onOpenModelMenuItemClick() {
         FileChooser fileChooser = new FileChooser();
@@ -681,20 +462,12 @@ public class GuiController {
             return;
         }
 
-        Path fileName = Path.of(file.getAbsolutePath());
-
         try {
-            String fileContent = Files.readString(fileName);
-            Model mesh = ObjReader.read(fileContent);
-
-            Triangulator triangulator = new SimpleTriangulator();
-            triangulator.triangulateModel(mesh);
-
-            NormalCalculator.recalculateNormals(mesh);
+            Model mesh = FileOperationsHandler.loadModel(file);
 
             SceneModel sceneModel = new SceneModel(mesh, file.getName());
             sceneModels.add(sceneModel);
-            modelNames.add(sceneModel.name);
+            modelNames.add(sceneModel.getName());
 
             if (modelsListView != null && modelsListView.getItems() != modelNames) {
                 modelsListView.setItems(modelNames);
@@ -703,6 +476,10 @@ public class GuiController {
             selectedModelIndex = sceneModels.size() - 1;
             if (modelsListView != null) {
                 modelsListView.getSelectionModel().select(selectedModelIndex);
+            }
+            
+            if (transformController != null) {
+                transformController.setup(sceneModel.getTransform(), this::updateTransformUI);
             }
 
             updateStatusBar();
@@ -716,6 +493,12 @@ public class GuiController {
         }
     }
 
+    /**
+     * Обрабатывает сохранение модели в файл.
+     * 
+     * <p>Показывает диалог выбора: сохранить исходную модель или с примененными трансформациями,
+     * затем показывает диалог выбора файла и сохраняет модель.
+     */
     @FXML
     private void onSaveModelMenuItemClick() {
         SceneModel current = getSelectedSceneModel();
@@ -724,47 +507,17 @@ public class GuiController {
             return;
         }
 
-        Alert choiceDialog = new Alert(AlertType.CONFIRMATION);
-        choiceDialog.setTitle("Save Model");
-        choiceDialog.setHeaderText("Choose save option:");
-        choiceDialog.setContentText("Save original model or model with applied transformations?");
-        
-        ButtonType originalButton = new ButtonType("Original Model", ButtonBar.ButtonData.YES);
-        ButtonType transformedButton = new ButtonType("With Transformations", ButtonBar.ButtonData.NO);
-        ButtonType cancelButton = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
-        
-        choiceDialog.getButtonTypes().setAll(originalButton, transformedButton, cancelButton);
-        
-        Optional<ButtonType> result = choiceDialog.showAndWait();
-        
-        if (result.isEmpty() || result.get() == cancelButton) {
-            return;
-        }
-
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model (*.obj)", "*.obj"));
-        fileChooser.setTitle("Save Model");
-        
-        fileChooser.setInitialFileName(current.name != null ? current.name : "model.obj");
-
-        File file = fileChooser.showSaveDialog((Stage) canvas.getScene().getWindow());
-        if (file == null) {
-            return;
-        }
-
         try {
-            Model modelToSave;
-            if (result.get() == transformedButton) {
-                Matrix4f transformMatrix = ModelMatrixBuilder.build(current.transform);
-                modelToSave = ModelTransformer.applyTransform(current.model, transformMatrix);
-            } else {
-                modelToSave = current.model;
+            boolean saved = FileOperationsHandler.saveModelWithChoice(
+                current.getModel(),
+                current.getTransform(),
+                current.getName(),
+                (Stage) canvas.getScene().getWindow()
+            );
+            
+            if (saved) {
+                showSuccess("Model saved", "Model successfully saved.");
             }
-            
-            ObjWriter.saveModel(modelToSave, file.getAbsolutePath());
-            
-            String saveType = (result.get() == transformedButton) ? "with transformations" : "original";
-            showSuccess("Model saved", String.format("Model (%s) successfully saved to:\n%s", saveType, file.getAbsolutePath()));
         } catch (IOException exception) {
             showError("Error saving model", "Failed to save file: " + exception.getMessage());
         } catch (Exception exception) {
@@ -772,6 +525,9 @@ public class GuiController {
         }
     }
 
+    /**
+     * Настраивает UI для настроек рендеринга (wireframe, filled, цвета, текстуры).
+     */
     private void setupDisplaySettingsUI() {
         if (showWireframeCheckBox != null) {
             showWireframeCheckBox.setSelected(renderSettings.isShowWireframe());
@@ -813,6 +569,11 @@ public class GuiController {
         }
     }
 
+    /**
+     * Обрабатывает загрузку текстуры из файла.
+     * 
+     * <p>Показывает диалог выбора изображения и загружает его как текстуру.
+     */
     @FXML
     private void onLoadTextureButtonClick() {
         javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
@@ -839,6 +600,9 @@ public class GuiController {
         }
     }
 
+    /**
+     * Обновляет метку с информацией о загруженной текстуре.
+     */
     private void updateTextureLabel() {
         if (textureNameLabel != null) {
             com.cgvsu.render_engine.Texture texture = renderSettings.getTexture();
@@ -850,11 +614,22 @@ public class GuiController {
         }
     }
 
+    /**
+     * Настраивает UI для управления списком моделей в сцене.
+     */
     private void setupSceneModelsUI() {
         if (modelsListView != null) {
             modelsListView.setItems(modelNames);
             modelsListView.getSelectionModel().selectedIndexProperty().addListener((obs, oldVal, newVal) -> {
                 selectedModelIndex = newVal.intValue();
+                if (transformController != null) {
+                    ModelTransform currentTransform = getCurrentTransform();
+                    if (currentTransform != null) {
+                        transformController.setup(currentTransform, this::updateTransformUI);
+                    } else {
+                        transformController.updateFields(null);
+                    }
+                }
                 updateTransformUI();
                 updateSceneInfo();
                 updateStatusBar();
@@ -866,7 +641,7 @@ public class GuiController {
             modelActiveCheckBox.setOnAction(e -> {
                 SceneModel current = getSelectedSceneModel();
                 if (current != null) {
-                    current.active = modelActiveCheckBox.isSelected();
+                    current.setActive(modelActiveCheckBox.isSelected());
                 }
             });
         }
@@ -874,6 +649,9 @@ public class GuiController {
         updateModelActiveCheckBox();
     }
 
+    /**
+     * Обновляет состояние чекбокса активности модели.
+     */
     private void updateModelActiveCheckBox() {
         if (modelActiveCheckBox == null) return;
         SceneModel current = getSelectedSceneModel();
@@ -882,16 +660,22 @@ public class GuiController {
             modelActiveCheckBox.setDisable(true);
         } else {
             modelActiveCheckBox.setDisable(false);
-            modelActiveCheckBox.setSelected(current.active);
+            modelActiveCheckBox.setSelected(current.isActive());
         }
     }
 
+    /**
+     * Обрабатывает выход из приложения.
+     */
     @FXML
     private void onExitMenuItemClick() {
         Stage stage = (Stage) canvas.getScene().getWindow();
         stage.close();
     }
 
+    /**
+     * Показывает справку по управлению приложением.
+     */
     @FXML
     private void onHelpMenuItemClick() {
         Alert alert = new Alert(AlertType.INFORMATION);
@@ -918,6 +702,9 @@ public class GuiController {
         alert.showAndWait();
     }
 
+    /**
+     * Сбрасывает камеру в начальное положение.
+     */
     @FXML
     private void handleResetCamera() {
         if (cameraController != null) {
@@ -929,6 +716,11 @@ public class GuiController {
         updateStatusBar();
     }
 
+    /**
+     * Обрабатывает нажатие клавиши для управления камерой.
+     * 
+     * @param event событие нажатия клавиши
+     */
     private void handleKeyPressed(KeyEvent event) {
         if (cameraController == null) return;
         
@@ -970,34 +762,64 @@ public class GuiController {
         }
     }
 
+    /**
+     * Обрабатывает отпускание клавиши.
+     * 
+     * @param event событие отпускания клавиши
+     */
     private void handleKeyReleased(KeyEvent event) {
 
     }
 
+    /**
+     * Обрабатывает нажатие кнопки мыши для управления камерой.
+     * 
+     * @param event событие нажатия мыши
+     */
     private void handleMousePressed(MouseEvent event) {
         if (cameraController != null && event.isPrimaryButtonDown()) {
             cameraController.onMousePressed(event.getX(), event.getY());
         }
     }
 
+    /**
+     * Обрабатывает перетаскивание мыши для поворота камеры.
+     * 
+     * @param event событие перетаскивания мыши
+     */
     private void handleMouseDragged(MouseEvent event) {
         if (cameraController != null && event.isPrimaryButtonDown()) {
             cameraController.onMouseDragged(event.getX(), event.getY());
         }
     }
 
+    /**
+     * Обрабатывает отпускание кнопки мыши.
+     * 
+     * @param event событие отпускания мыши
+     */
     private void handleMouseReleased(MouseEvent event) {
         if (cameraController != null) {
             cameraController.onMouseReleased();
         }
     }
 
+    /**
+     * Обрабатывает прокрутку колесика мыши для зума камеры.
+     * 
+     * @param event событие прокрутки
+     */
     private void handleScroll(ScrollEvent event) {
         if (cameraController != null) {
             cameraController.onMouseScroll(event.getDeltaY());
         }
     }
 
+    /**
+     * Обрабатывает движение камеры вперед (по направлению взгляда).
+     * 
+     * @param actionEvent событие действия (не используется)
+     */
     @FXML
     public void handleCameraForward(ActionEvent actionEvent) {
         if (cameraController != null) {
@@ -1005,6 +827,11 @@ public class GuiController {
         }
     }
 
+    /**
+     * Обрабатывает движение камеры назад (против направления взгляда).
+     * 
+     * @param actionEvent событие действия (не используется)
+     */
     @FXML
     public void handleCameraBackward(ActionEvent actionEvent) {
         if (cameraController != null) {
@@ -1012,6 +839,11 @@ public class GuiController {
         }
     }
 
+    /**
+     * Обрабатывает движение камеры влево.
+     * 
+     * @param actionEvent событие действия (не используется)
+     */
     @FXML
     public void handleCameraLeft(ActionEvent actionEvent) {
         if (cameraController != null) {
@@ -1019,6 +851,11 @@ public class GuiController {
         }
     }
 
+    /**
+     * Обрабатывает движение камеры вправо.
+     * 
+     * @param actionEvent событие действия (не используется)
+     */
     @FXML
     public void handleCameraRight(ActionEvent actionEvent) {
         if (cameraController != null) {
@@ -1026,6 +863,11 @@ public class GuiController {
         }
     }
 
+    /**
+     * Обрабатывает движение камеры вверх.
+     * 
+     * @param actionEvent событие действия (не используется)
+     */
     @FXML
     public void handleCameraUp(ActionEvent actionEvent) {
         if (cameraController != null) {
@@ -1033,6 +875,11 @@ public class GuiController {
         }
     }
 
+    /**
+     * Обрабатывает движение камеры вниз.
+     * 
+     * @param actionEvent событие действия (не используется)
+     */
     @FXML
     public void handleCameraDown(ActionEvent actionEvent) {
         if (cameraController != null) {
@@ -1040,6 +887,12 @@ public class GuiController {
         }
     }
 
+    /**
+     * Показывает диалог с сообщением об ошибке.
+     * 
+     * @param title заголовок диалога
+     * @param message текст сообщения
+     */
     private void showError(String title, String message) {
         Alert alert = new Alert(AlertType.ERROR);
         alert.setTitle(title);
@@ -1048,6 +901,12 @@ public class GuiController {
         alert.showAndWait();
     }
 
+    /**
+     * Показывает диалог с сообщением об успешной операции.
+     * 
+     * @param title заголовок диалога
+     * @param message текст сообщения
+     */
     private void showSuccess(String title, String message) {
         Alert alert = new Alert(AlertType.INFORMATION);
         alert.setTitle(title);

@@ -9,12 +9,26 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Утилиты для работы с полигонами при триангуляции
+ * Утилитный класс для работы с полигонами при триангуляции.
+ * 
+ * <p>Предоставляет методы для создания новых полигонов, копирования
+ * и вычисления геометрических характеристик.
+ * 
+ * @author CGVSU Team
+ * @version 1.0
  */
 public class PolygonUtil {
     
     /**
-     * Создает новый полигон с указанными индексами вершин и соответствующими индексами текстур и нормалей
+     * Создает новый полигон с указанными индексами вершин и соответствующими индексами текстур и нормалей.
+     * 
+     * <p>Автоматически сопоставляет текстурные координаты и нормали вершинам на основе карт соответствия.
+     * 
+     * @param vertexIndexes список индексов вершин (минимум 3)
+     * @param textureIndexesMap карта соответствия индексов вершин индексам текстурных координат
+     * @param normalsIndexesMap карта соответствия индексов вершин индексам нормалей
+     * @return новый полигон с установленными индексами
+     * @throws IllegalArgumentException если количество вершин меньше 3
      */
     public static Polygon createNewPolygon(
             List<Integer> vertexIndexes,
@@ -54,7 +68,13 @@ public class PolygonUtil {
     }
     
     /**
-     * Создает глубокую копию полигона
+     * Создает глубокую копию полигона.
+     * 
+     * <p>Все списки индексов копируются, а не просто ссылаются на исходные.
+     * 
+     * @param polygon исходный полигон для копирования
+     * @return новый полигон с копиями всех данных
+     * @throws NullPointerException если polygon равен null
      */
     public static Polygon deepCopyOfPolygon(Polygon polygon) {
         Polygon copy = new Polygon();
@@ -69,7 +89,16 @@ public class PolygonUtil {
     }
     
     /**
-     * Вычисляет площадь треугольника (полигон должен иметь 3 вершины)
+     * Вычисляет площадь треугольника по его вершинам.
+     * 
+     * <p>Использует векторное произведение двух сторон треугольника.
+     * Площадь равна половине длины векторного произведения.
+     * 
+     * @param polygon полигон, который должен быть треугольником (3 вершины)
+     * @param model модель, содержащая вершины
+     * @return площадь треугольника
+     * @throws IllegalArgumentException если полигон не является треугольником (не имеет 3 вершин)
+     * @throws IndexOutOfBoundsException если индексы вершин выходят за границы массива вершин модели
      */
     public static float calcTrianglePolygonSquare(Polygon polygon, Model model) {
         List<Integer> vertexIndices = polygon.getVertexIndices();

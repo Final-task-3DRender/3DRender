@@ -15,8 +15,43 @@ import com.cgvsu.camera.Camera;
 import com.cgvsu.transform.ModelMatrixBuilder;
 import static com.cgvsu.render_engine.GraphicConveyor.vertexToPoint;
 
+/**
+ * Основной класс рендер-движка для отрисовки 3D моделей.
+ * 
+ * <p>Реализует полный графический конвейер:
+ * <ol>
+ *   <li>Преобразование из локальных координат в мировые (Model Matrix)</li>
+ *   <li>Преобразование из мировых координат в координаты камеры (View Matrix)</li>
+ *   <li>Перспективная проекция (Projection Matrix)</li>
+ *   <li>Преобразование в экранные координаты</li>
+ *   <li>Растеризация треугольников с поддержкой Z-buffer и текстур</li>
+ * </ol>
+ * 
+ * <p>Поддерживает:
+ * <ul>
+ *   <li>Z-buffer для правильной отрисовки глубины</li>
+ *   <li>Backface culling для оптимизации</li>
+ *   <li>Текстуры с perspective-correct interpolation</li>
+ *   <li>Wireframe и filled режимы отрисовки</li>
+ *   <li>Оптимизацию для больших моделей (пропуск полигонов)</li>
+ * </ul>
+ * 
+ * <p>Использует векторы-столбцы. Порядок умножения матриц: P * V * M.
+ * 
+ * @author CGVSU Team
+ * @version 1.0
+ */
 public class RenderEngine {
 
+    /**
+     * Рендерит модель без трансформаций и с настройками по умолчанию.
+     * 
+     * @param graphicsContext контекст графики JavaFX для отрисовки
+     * @param camera камера для определения точки зрения
+     * @param mesh модель для отрисовки
+     * @param width ширина области отрисовки
+     * @param height высота области отрисовки
+     */
     public static void render(
             final GraphicsContext graphicsContext,
             final Camera camera,
@@ -27,6 +62,16 @@ public class RenderEngine {
         render(graphicsContext, camera, mesh, null, width, height);
     }
 
+    /**
+     * Рендерит модель с трансформациями и настройками по умолчанию.
+     * 
+     * @param graphicsContext контекст графики JavaFX для отрисовки
+     * @param camera камера для определения точки зрения
+     * @param mesh модель для отрисовки
+     * @param transform трансформации модели (позиция, вращение, масштаб), может быть null
+     * @param width ширина области отрисовки
+     * @param height высота области отрисовки
+     */
     public static void render(
             final GraphicsContext graphicsContext,
             final Camera camera,
@@ -39,6 +84,26 @@ public class RenderEngine {
         render(graphicsContext, camera, mesh, transform, width, height, defaultSettings);
     }
 
+    /**
+     * Рендерит модель с полным контролем над настройками.
+     * 
+     * <p>Основной метод рендеринга, выполняющий полный графический конвейер:
+     * <ol>
+     *   <li>Строит матрицы преобразования (Model, View, Projection)</li>
+     *   <li>Комбинирует их в MVP матрицу (P * V * M для векторов-столбцов)</li>
+     *   <li>Преобразует вершины через MVP матрицу</li>
+     *   <li>Выполняет backface culling (если включен)</li>
+     *   <li>Растеризует треугольники с поддержкой Z-buffer и текстур</li>
+     * </ol>
+     * 
+     * @param graphicsContext контекст графики JavaFX для отрисовки
+     * @param camera камера для определения точки зрения
+     * @param mesh модель для отрисовки
+     * @param transform трансформации модели (позиция, вращение, масштаб), может быть null
+     * @param width ширина области отрисовки
+     * @param height высота области отрисовки
+     * @param settings настройки рендеринга (цвета, режимы отрисовки, Z-buffer и т.д.)
+     */
     public static void render(
             final GraphicsContext graphicsContext,
             final Camera camera,

@@ -90,10 +90,20 @@ public class ZBuffer {
         return buffer[y * width + x];
     }
     
+    /**
+     * Возвращает ширину Z-buffer (ширину экрана).
+     * 
+     * @return ширина в пикселях
+     */
     public int getWidth() {
         return width;
     }
     
+    /**
+     * Возвращает высоту Z-buffer (высоту экрана).
+     * 
+     * @return высота в пикселях
+     */
     public int getHeight() {
         return height;
     }

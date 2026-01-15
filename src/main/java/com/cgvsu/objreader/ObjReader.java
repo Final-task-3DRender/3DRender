@@ -9,14 +9,49 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
 
+/**
+ * Класс для чтения 3D моделей из файлов формата OBJ.
+ * 
+ * <p>Поддерживает чтение:
+ * <ul>
+ *   <li>Вершин (v) - трехмерные координаты точек</li>
+ *   <li>Текстурных координат (vt) - UV координаты для текстур</li>
+ *   <li>Нормалей (vn) - векторы нормалей вершин</li>
+ *   <li>Полигонов (f) - грани модели с поддержкой текстурных координат и нормалей</li>
+ * </ul>
+ * 
+ * <p>Поддерживает относительную индексацию (отрицательные индексы).
+ * Пропускает комментарии (строки, начинающиеся с #).
+ * 
+ * <p>При ошибках парсинга выбрасывает {@link ObjReaderException} с указанием номера строки.
+ * 
+ * @author CGVSU Team
+ * @version 1.0
+ * @see ObjReaderException
+ */
 public class ObjReader {
 
+	/** Токен для вершин в OBJ файле */
 	private static final String OBJ_VERTEX_TOKEN = "v";
+	/** Токен для текстурных координат в OBJ файле */
 	private static final String OBJ_TEXTURE_TOKEN = "vt";
+	/** Токен для нормалей в OBJ файле */
 	private static final String OBJ_NORMAL_TOKEN = "vn";
+	/** Токен для полигонов (граней) в OBJ файле */
 	private static final String OBJ_FACE_TOKEN = "f";
+	/** Токен для комментариев в OBJ файле */
 	private static final String OBJ_COMMENT_TOKEN = "#";
 
+	/**
+	 * Читает модель из содержимого OBJ файла.
+	 * 
+	 * <p>Парсит строки файла, извлекая вершины, текстурные координаты, нормали и полигоны.
+	 * Валидирует модель после чтения (проверяет наличие вершин и полигонов).
+	 * 
+	 * @param fileContent содержимое OBJ файла в виде строки
+	 * @return загруженная модель
+	 * @throws ObjReaderException если содержимое файла пустое, null или содержит ошибки парсинга
+	 */
 	public static Model read(String fileContent) {
 		if (fileContent == null || fileContent.trim().isEmpty()) {
 			throw new ObjReaderException("File content is empty or null.", 0);
@@ -59,6 +94,14 @@ public class ObjReader {
 		return result;
 	}
 
+	/**
+	 * Валидирует загруженную модель.
+	 * 
+	 * <p>Проверяет, что модель содержит хотя бы одну вершину и один полигон.
+	 * 
+	 * @param model модель для валидации
+	 * @throws ObjReaderException если модель невалидна (нет вершин или полигонов)
+	 */
 	private static void validateModel(Model model) {
 		if (model.vertices.isEmpty()) {
 			throw new ObjReaderException("Model has no vertices.", 0);
@@ -68,6 +111,18 @@ public class ObjReader {
 		}
 	}
 
+	/**
+	 * Парсит строку с вершиной из OBJ файла.
+	 * 
+	 * <p>Ожидает 3 координаты (x, y, z) в формате float.
+	 * Проверяет на NaN и Infinity значения.
+	 * 
+	 * @param wordsInLineWithoutToken список слов в строке без токена (только координаты)
+	 * @param lineInd номер строки в файле (для сообщений об ошибках)
+	 * @return трехмерный вектор вершины
+	 * @throws ObjReaderException если количество аргументов неверное, значения не могут быть распарсены,
+	 *                            или содержат NaN/Infinity
+	 */
 	protected static Vector3f parseVertex(final ArrayList<String> wordsInLineWithoutToken, int lineInd) {
 		if (wordsInLineWithoutToken.isEmpty()) {
 			throw new ObjReaderException("Too few arguments for vertex.", lineInd);
@@ -100,6 +155,19 @@ public class ObjReader {
 		}
 	}
 
+	/**
+	 * Парсит строку с текстурной координатой из OBJ файла.
+	 * 
+	 * <p>Ожидает 2 координаты (u, v) в формате float.
+	 * OBJ формат поддерживает также третью координату w, но она игнорируется.
+	 * Проверяет на NaN и Infinity значения.
+	 * 
+	 * @param wordsInLineWithoutToken список слов в строке без токена (только координаты)
+	 * @param lineInd номер строки в файле (для сообщений об ошибках)
+	 * @return двумерный вектор текстурной координаты
+	 * @throws ObjReaderException если количество аргументов неверное, значения не могут быть распарсены,
+	 *                            или содержат NaN/Infinity
+	 */
 	protected static Vector2f parseTextureVertex(final ArrayList<String> wordsInLineWithoutToken, int lineInd) {
 		if (wordsInLineWithoutToken.isEmpty()) {
 			throw new ObjReaderException("Too few arguments for texture vertex.", lineInd);
@@ -131,6 +199,18 @@ public class ObjReader {
 		}
 	}
 
+	/**
+	 * Парсит строку с нормалью из OBJ файла.
+	 * 
+	 * <p>Ожидает 3 компонента (x, y, z) в формате float.
+	 * Проверяет на NaN и Infinity значения.
+	 * 
+	 * @param wordsInLineWithoutToken список слов в строке без токена (только компоненты)
+	 * @param lineInd номер строки в файле (для сообщений об ошибках)
+	 * @return трехмерный вектор нормали
+	 * @throws ObjReaderException если количество аргументов неверное, значения не могут быть распарсены,
+	 *                            или содержат NaN/Infinity
+	 */
 	protected static Vector3f parseNormal(final ArrayList<String> wordsInLineWithoutToken, int lineInd) {
 		if (wordsInLineWithoutToken.isEmpty()) {
 			throw new ObjReaderException("Too few arguments for normal.", lineInd);
@@ -163,6 +243,23 @@ public class ObjReader {
 		}
 	}
 
+	/**
+	 * Парсит строку с полигоном (гранью) из OBJ файла.
+	 * 
+	 * <p>Формат полигона: f v1[/vt1][/vn1] v2[/vt2][/vn2] v3[/vt3][/vn3] ...
+	 * где v - индекс вершины, vt - индекс текстурной координаты, vn - индекс нормали.
+	 * 
+	 * <p>Полигон должен содержать минимум 3 вершины.
+	 * Проверяет согласованность индексов (если указаны текстурные координаты или нормали,
+	 * они должны быть указаны для всех вершин).
+	 * 
+	 * @param wordsInLineWithoutToken список слов в строке без токена (только определения вершин)
+	 * @param lineInd номер строки в файле (для сообщений об ошибках)
+	 * @param model модель, содержащая уже загруженные вершины, текстурные координаты и нормали
+	 * @return полигон с установленными индексами
+	 * @throws ObjReaderException если формат неверный, недостаточно вершин, индексы не согласованы
+	 *                            или выходят за границы массивов
+	 */
 	protected static Polygon parseFace(final ArrayList<String> wordsInLineWithoutToken, int lineInd, Model model) {
 		if (wordsInLineWithoutToken.isEmpty()) {
 			throw new ObjReaderException("Polygon has no vertices.", lineInd);
@@ -201,6 +298,27 @@ public class ObjReader {
 		return result;
 	}
 
+	/**
+	 * Парсит одно определение вершины в полигоне.
+	 * 
+	 * <p>Формат: v[/vt][/vn], где:
+	 * <ul>
+	 *   <li>v - индекс вершины (обязателен)</li>
+	 *   <li>vt - индекс текстурной координаты (опционален)</li>
+	 *   <li>vn - индекс нормали (опционален)</li>
+	 * </ul>
+	 * 
+	 * <p>Поддерживает относительную индексацию (отрицательные индексы).
+	 * 
+	 * @param wordInLine определение вершины в формате v[/vt][/vn]
+	 * @param onePolygonVertexIndices список для добавления индекса вершины
+	 * @param onePolygonTextureVertexIndices список для добавления индекса текстурной координаты
+	 * @param onePolygonNormalIndices список для добавления индекса нормали
+	 * @param lineInd номер строки в файле (для сообщений об ошибках)
+	 * @param model модель для проверки границ индексов
+	 * @throws ObjReaderException если формат неверный, индекс не может быть распарсен,
+	 *                            индекс равен нулю, или индекс выходит за границы массива
+	 */
 	protected static void parseFaceWord(
 			String wordInLine,
 			ArrayList<Integer> onePolygonVertexIndices,
@@ -255,6 +373,27 @@ public class ObjReader {
 		}
 	}
 
+	/**
+	 * Парсит индекс из строки с поддержкой относительной индексации.
+	 * 
+	 * <p>OBJ формат использует индексацию, начинающуюся с 1 (не с 0).
+	 * Отрицательные индексы означают относительную индексацию от конца массива.
+	 * 
+	 * <p>Примеры:
+	 * <ul>
+	 *   <li>"1" -> индекс 0 (первый элемент)</li>
+	 *   <li>"-1" -> последний элемент массива</li>
+	 *   <li>"-2" -> предпоследний элемент массива</li>
+	 * </ul>
+	 * 
+	 * @param indexStr строка с индексом
+	 * @param arraySize размер массива, к которому относится индекс
+	 * @param indexType тип индекса ("vertex", "texture vertex", "normal") для сообщений об ошибках
+	 * @param lineInd номер строки в файле (для сообщений об ошибках)
+	 * @return преобразованный индекс (0-based)
+	 * @throws ObjReaderException если индекс пустой, равен нулю, не может быть распарсен,
+	 *                            или выходит за границы массива
+	 */
 	private static int parseIndex(String indexStr, int arraySize, String indexType, int lineInd) {
 		if (indexStr == null || indexStr.trim().isEmpty()) {
 			throw new ObjReaderException("Index " + indexType + " is empty.", lineInd);
