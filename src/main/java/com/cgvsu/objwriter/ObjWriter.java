@@ -98,7 +98,6 @@ public class ObjWriter {
                     nIndices.size() + " vs " + vertexCount + ")");
         }
 
-        // Валидация границ индексов
         validateIndexRange(polygonIndex, vIndices, "vertex", totalVertices);
         if (tIndices != null && !tIndices.isEmpty()) {
             validateIndexRange(polygonIndex, tIndices, "texture", totalTextures);

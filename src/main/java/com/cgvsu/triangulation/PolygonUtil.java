@@ -92,7 +92,6 @@ public class PolygonUtil {
                 v2.z - v1.z
         );
         
-        // Вычисляем площадь через векторное произведение
         Vector3f cross = first.cross(second);
         float area = 0.5f * cross.length();
         return area;

@@ -16,13 +16,11 @@ public class Simple3DViewer extends Application {
         BorderPane viewport = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("fxml/gui.fxml")));
 
         Scene scene = new Scene(viewport);
-        // Убираем минимальные размеры, чтобы окно могло адаптироваться к любому размеру экрана
         viewport.prefWidthProperty().bind(scene.widthProperty());
         viewport.prefHeightProperty().bind(scene.heightProperty());
 
         stage.setTitle("3D Viewer");
         stage.setScene(scene);
-        // Открываем окно на полный экран
         stage.setMaximized(true);
         stage.show();
     }

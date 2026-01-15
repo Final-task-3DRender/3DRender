@@ -25,64 +25,50 @@ public class NormalCalculator {
             return;
         }
         
-        // Очищаем существующие нормали (пересчитываем даже если они были в файле)
         model.normals.clear();
         
-        // Карта для хранения нормалей вершин (для сглаживания)
         Map<Integer, Vector3f> vertexNormals = new HashMap<>();
         
-        // Вычисляем нормали для каждого полигона
         for (Polygon polygon : model.polygons) {
             ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
             
-            // Полигон должен иметь минимум 3 вершины
             if (vertexIndices.size() < 3) {
                 continue;
             }
             
-            // Получаем вершины полигона
             Vector3f v0 = model.vertices.get(vertexIndices.get(0));
             Vector3f v1 = model.vertices.get(vertexIndices.get(1));
             Vector3f v2 = model.vertices.get(vertexIndices.get(2));
             
-            // Вычисляем два вектора сторон треугольника
             Vector3f edge1 = v1.subtract(v0);
             Vector3f edge2 = v2.subtract(v0);
             
-            // Нормаль полигона = векторное произведение edge1 x edge2
             Vector3f polygonNormal = edge1.cross(edge2);
             
-            // Нормализуем нормаль
             try {
                 polygonNormal = polygonNormal.normalize();
             } catch (ArithmeticException e) {
-                // Если вектор нулевой (вырожденный треугольник), используем единичный вектор по умолчанию
                 polygonNormal = new Vector3f(0, 0, 1);
             }
             
-            // Добавляем нормаль в список нормалей модели
             int normalIndex = model.normals.size();
             model.normals.add(polygonNormal);
             
-            // Обновляем индексы нормалей в полигоне
             ArrayList<Integer> normalIndices = new ArrayList<>();
             for (int i = 0; i < vertexIndices.size(); i++) {
                 normalIndices.add(normalIndex);
             }
             polygon.setNormalIndices(normalIndices);
             
-            // Для сглаживания: добавляем нормаль полигона к каждой вершине
             for (Integer vertexIndex : vertexIndices) {
                 vertexNormals.merge(vertexIndex, polygonNormal, Vector3f::add);
             }
         }
         
-        // Нормализуем нормали вершин (для будущего использования в smooth shading)
         for (Map.Entry<Integer, Vector3f> entry : vertexNormals.entrySet()) {
             try {
                 vertexNormals.put(entry.getKey(), entry.getValue().normalize());
             } catch (ArithmeticException e) {
-                // Если вектор нулевой, используем единичный вектор по умолчанию
                 vertexNormals.put(entry.getKey(), new Vector3f(0, 0, 1));
             }
         }

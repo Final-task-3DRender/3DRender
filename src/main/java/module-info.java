@@ -3,7 +3,6 @@ module com.cgvsu {
     requires javafx.fxml;
     requires java.desktop;
 
-    // Экспортируем основные пакеты для возможности расширения
     opens com.cgvsu to javafx.fxml;
     exports com.cgvsu;
 exports com.cgvsu.camera;

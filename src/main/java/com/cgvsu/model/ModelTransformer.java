@@ -34,11 +34,9 @@ public class ModelTransformer {
 
         Model result = new Model();
 
-        // Копируем полигоны и текстурные координаты как есть
         result.textureVertices = new ArrayList<>(source.textureVertices);
         result.polygons = new ArrayList<>(source.polygons);
 
-        // Преобразуем вершины (w = 1)
         result.vertices = new ArrayList<>(source.vertices.size());
         for (Vector3f v : source.vertices) {
             if (v == null) {
@@ -49,7 +47,6 @@ public class ModelTransformer {
             Vector4f v4 = new Vector4f(v, 1.0f);
             Vector4f transformed = transform.multiply(v4);
 
-            // Нормализация однородных координат
             float w = transformed.w;
             if (Math.abs(w) > 1e-7f && w != 1.0f) {
                 transformed = new Vector4f(
@@ -63,7 +60,6 @@ public class ModelTransformer {
             result.vertices.add(new Vector3f(transformed.x, transformed.y, transformed.z));
         }
 
-        // Преобразуем нормали, если есть (как направления: w = 0, без переноса)
         result.normals = new ArrayList<>(source.normals.size());
         for (Vector3f n : source.normals) {
             if (n == null) {
@@ -71,11 +67,9 @@ public class ModelTransformer {
                 continue;
             }
 
-            // Трактуем нормаль как вектор-направление (w = 0)
             Vector4f n4 = new Vector4f(n, 0.0f);
             Vector4f transformed = transform.multiply(n4);
 
-            // w здесь либо 0, либо что-то, не влияющее на направление — нормализуем по длине
             Vector3f dir = new Vector3f(transformed.x, transformed.y, transformed.z).normalize();
             result.normals.add(dir);
         }

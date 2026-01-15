@@ -129,7 +129,6 @@ public class GuiController {
     @FXML
     private Label sceneModelInfoLabel, scenePositionLabel, sceneRotationLabel, sceneScaleLabel;
 
-    // Scene models management
     private static class SceneModel {
         private final Model model;
         private final ModelTransform transform;
@@ -197,25 +196,21 @@ public class GuiController {
     @FXML
     private void initialize() {
         canvas.widthProperty().bind(borderPane.widthProperty().subtract(450)); // Left + Right panels
-        canvas.heightProperty().bind(borderPane.heightProperty().subtract(85)); // Menu + Toolbar + StatusBar
+        canvas.heightProperty().bind(borderPane.heightProperty().subtract(85));
 
-        // Setup keyboard shortcuts
         canvas.setFocusTraversable(true);
         canvas.requestFocus();
         canvas.addEventHandler(KeyEvent.KEY_PRESSED, this::handleKeyPressed);
         canvas.addEventHandler(KeyEvent.KEY_RELEASED, this::handleKeyReleased);
 
-        // Setup mouse controls
         canvas.addEventHandler(MouseEvent.MOUSE_PRESSED, this::handleMousePressed);
         canvas.addEventHandler(MouseEvent.MOUSE_DRAGGED, this::handleMouseDragged);
         canvas.addEventHandler(MouseEvent.MOUSE_RELEASED, this::handleMouseReleased);
         canvas.addEventHandler(ScrollEvent.SCROLL, this::handleScroll);
 
-        // Setup animation loop
         timeline = new Timeline();
         timeline.setCycleCount(Animation.INDEFINITE);
 
-        // Увеличен интервал рендеринга до 33 мс (~30 FPS) для лучшей производительности с большими моделями
         KeyFrame frame = new KeyFrame(Duration.millis(33), event -> {
             double width = canvas.getWidth();
             double height = canvas.getHeight();
@@ -251,7 +246,6 @@ public class GuiController {
         setupSceneModelsUI();
         setupDisplaySettingsUI();
 
-        // Initialize camera controller
         cameraController = new OrbitCameraController(camera, initialCameraPosition, initialCameraTarget);
 
         updateStatusBar();
@@ -693,11 +687,9 @@ public class GuiController {
             String fileContent = Files.readString(fileName);
             Model mesh = ObjReader.read(fileContent);
 
-            // Триангулируем модель
             Triangulator triangulator = new SimpleTriangulator();
             triangulator.triangulateModel(mesh);
 
-            // Пересчитываем нормали (даже если они были в файле, мы не можем им доверять)
             NormalCalculator.recalculateNormals(mesh);
 
             SceneModel sceneModel = new SceneModel(mesh, file.getName());
@@ -708,7 +700,6 @@ public class GuiController {
                 modelsListView.setItems(modelNames);
             }
 
-            // Select newly added model
             selectedModelIndex = sceneModels.size() - 1;
             if (modelsListView != null) {
                 modelsListView.getSelectionModel().select(selectedModelIndex);
@@ -733,7 +724,6 @@ public class GuiController {
             return;
         }
 
-        // Создаем диалог выбора: сохранить исходную модель или с трансформациями
         Alert choiceDialog = new Alert(AlertType.CONFIRMATION);
         choiceDialog.setTitle("Save Model");
         choiceDialog.setHeaderText("Choose save option:");
@@ -755,7 +745,6 @@ public class GuiController {
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model (*.obj)", "*.obj"));
         fileChooser.setTitle("Save Model");
         
-        // Set default filename to selected model name
         fileChooser.setInitialFileName(current.name != null ? current.name : "model.obj");
 
         File file = fileChooser.showSaveDialog((Stage) canvas.getScene().getWindow());
@@ -766,11 +755,9 @@ public class GuiController {
         try {
             Model modelToSave;
             if (result.get() == transformedButton) {
-                // Применяем трансформации к модели
                 Matrix4f transformMatrix = ModelMatrixBuilder.build(current.transform);
                 modelToSave = ModelTransformer.applyTransform(current.model, transformMatrix);
             } else {
-                // Сохраняем исходную модель
                 modelToSave = current.model;
             }
             

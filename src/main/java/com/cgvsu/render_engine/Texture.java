@@ -82,16 +82,12 @@ public class Texture {
      * @return цвет пикселя
      */
     public Color getPixel(float u, float v) {
-        // Clamp UV координаты в диапазон [0, 1]
         u = Math.max(0.0f, Math.min(1.0f, u));
         v = Math.max(0.0f, Math.min(1.0f, v));
         
-        // Преобразуем UV в координаты пикселя
-        // V инвертируем, так как в текстурах V обычно растет вниз, а в нашей системе - вверх
         int x = (int) (u * (width - 1));
         int y = (int) ((1.0f - v) * (height - 1));
         
-        // Ограничиваем координаты границами текстуры
         x = Math.max(0, Math.min(width - 1, x));
         y = Math.max(0, Math.min(height - 1, y));
         
@@ -107,11 +103,9 @@ public class Texture {
      * @return интерполированный цвет пикселя
      */
     public Color getPixelBilinear(float u, float v) {
-        // Clamp UV координаты
         u = Math.max(0.0f, Math.min(1.0f, u));
         v = Math.max(0.0f, Math.min(1.0f, v));
         
-        // Преобразуем UV в координаты пикселя с дробной частью
         float fx = u * (width - 1);
         float fy = (1.0f - v) * (height - 1);
         
@@ -123,13 +117,11 @@ public class Texture {
         float fracX = fx - x0;
         float fracY = fy - y0;
         
-        // Получаем 4 соседних пикселя
         Color c00 = pixels[y0 * width + x0];
         Color c10 = pixels[y0 * width + x1];
         Color c01 = pixels[y1 * width + x0];
         Color c11 = pixels[y1 * width + x1];
         
-        // Билинейная интерполяция
         Color c0 = interpolateColor(c00, c10, fracX);
         Color c1 = interpolateColor(c01, c11, fracX);
         return interpolateColor(c0, c1, fracY);

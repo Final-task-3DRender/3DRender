@@ -37,13 +37,10 @@ public class ModelMatrixBuilder {
             throw new IllegalArgumentException("Position, rotation and scale cannot be null");
         }
 
-        // Создаем отдельные матрицы
         Matrix4f scaleMatrix = createScaleMatrix(scale);
         Matrix4f rotationMatrix = createRotationMatrix(rotation);
         Matrix4f translationMatrix = createTranslationMatrix(position);
 
-        // Комбинируем в правильном порядке: T * R * S
-        // Это означает: сначала масштаб, потом вращение, потом перенос
         return translationMatrix.multiply(rotationMatrix).multiply(scaleMatrix);
     }
 

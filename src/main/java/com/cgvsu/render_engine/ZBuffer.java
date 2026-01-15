@@ -5,21 +5,12 @@ import java.util.Arrays;
 /**
  * Z-buffer (буфер глубины) для правильной отрисовки 3D объектов.
  * Хранит глубину (Z-координату) для каждого пикселя экрана.
- * 
- * ВАЖНО: В нашей системе координат после перспективной проекции:
- * - Ближние объекты имеют БОЛЬШИЕ значения Z (менее отрицательные или положительные)
- * - Дальние объекты имеют МЕНЬШИЕ значения Z (более отрицательные)
- * Поэтому используем сравнение z > currentZ для определения ближайшего пикселя.
  */
 public class ZBuffer {
     private final float[] buffer;
     private final int width;
     private final int height;
     
-    // Специальное значение для неинициализированных пикселей
-    // Используем очень маленькое значение, чтобы первый пиксель всегда проходил проверку
-    // В нашей системе координат: большие значения Z означают ближе к камере
-    // Поэтому используем маленькое значение, чтобы любой реальный z был больше
     private static final float UNINITIALIZED = -1e10f;
     
     /**
@@ -39,8 +30,6 @@ public class ZBuffer {
      * Очищает Z-buffer, устанавливая все значения в максимальную глубину (дальше всего от камеры).
      */
     public void clear() {
-        // Используем Arrays.fill для быстрой очистки
-        // UNINITIALIZED - специальное значение, чтобы первый пиксель всегда проходил проверку
         Arrays.fill(buffer, UNINITIALIZED);
     }
     
@@ -63,12 +52,10 @@ public class ZBuffer {
      * @return true если пиксель нужно нарисовать (он ближе), false иначе
      */
     public boolean testAndSet(int x, int y, float z) {
-        // Проверка границ
         if (x < 0 || x >= width || y < 0 || y >= height) {
             return false;
         }
         
-        // Проверка валидности z
         if (Float.isNaN(z) || Float.isInfinite(z)) {
             return false;
         }
@@ -76,20 +63,16 @@ public class ZBuffer {
         int index = y * width + x;
         float currentZ = buffer[index];
         
-        // Если это первый пиксель в этой позиции, всегда рисуем его
         if (currentZ == UNINITIALIZED) {
             buffer[index] = z;
             return true;
         }
         
-        // В нашей системе координат: большие значения Z означают ближе к камере
-        // Рисуем только если z > currentZ (пиксель ближе к камере)
         if (z > currentZ) {
             buffer[index] = z;
             return true;
         }
         
-        // Если z <= currentZ, пиксель дальше от камеры или на той же глубине, не рисуем
         return false;
     }
     

@@ -30,9 +30,7 @@ public class GraphicConveyor {
             throw new IllegalArgumentException("Vertex cannot be null");
         }
         
-        // Преобразование из нормализованных координат [-1, 1] в экранные [0, width/height]
         float x = vertex.x * width / 2.0f + width / 2.0f;
-        // Инвертируем Y, так как в экранных координатах Y растет вниз
         float y = -vertex.y * height / 2.0f + height / 2.0f;
         return new Point2f(x, y);
     }

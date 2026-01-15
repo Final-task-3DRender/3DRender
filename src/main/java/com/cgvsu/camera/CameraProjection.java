@@ -26,10 +26,7 @@ public class CameraProjection {
             final float farPlane) {
         Matrix4f result = Matrix4f.zero();
         
-        // FOV должен быть в радианах, если передается в градусах, нужно преобразовать
-        // Предполагаем, что fov уже в радианах, но если это не так, можно добавить проверку
         float fovRad = fov;
-        // Если fov > 10, вероятно это градусы, преобразуем
         if (fov > 10.0f) {
             fovRad = (float) Math.toRadians(fov);
         }

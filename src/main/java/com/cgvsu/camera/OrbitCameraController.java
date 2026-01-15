@@ -17,16 +17,13 @@ public class OrbitCameraController {
     
     private final Camera camera;
     
-    // Начальные значения для сброса
     private final Vector3f initialPosition;
     private final Vector3f initialTarget;
     
-    // Параметры управления
     private float translationSpeed = 0.5f;
     private float rotationSensitivity = 0.01f;
     private float zoomSensitivity = 5.0f;
     
-    // Состояние для управления мышью
     private double lastMouseX = 0;
     private double lastMouseY = 0;
     private boolean isMousePressed = false;
@@ -95,28 +92,17 @@ public class OrbitCameraController {
         this.zoomSensitivity = sensitivity;
     }
     
-    /**
-     * Получить скорость движения
-     */
     public float getTranslationSpeed() {
         return translationSpeed;
     }
     
-    /**
-     * Получить чувствительность поворота
-     */
     public float getRotationSensitivity() {
         return rotationSensitivity;
     }
     
-    /**
-     * Получить чувствительность зума
-     */
     public float getZoomSensitivity() {
         return zoomSensitivity;
     }
-    
-    // ========== Движение камеры ==========
     
     /**
      * Движение камеры вперед (к цели)
@@ -186,8 +172,6 @@ public class OrbitCameraController {
         camera.movePosition(normalized);
     }
     
-    // ========== Поворот камеры (орбитальное движение) ==========
-    
     /**
      * Поворот камеры вокруг цели (орбитальное движение)
      * Используется для управления мышью
@@ -196,7 +180,6 @@ public class OrbitCameraController {
      * @param deltaY изменение по Y (в пикселях)
      */
     public void rotateAroundTarget(double deltaX, double deltaY) {
-        // Инвертируем deltaY, чтобы движение мыши вверх поднимало камеру
         rotateAroundTarget((float) deltaX * rotationSensitivity, -(float) deltaY * rotationSensitivity);
     }
     
@@ -210,37 +193,22 @@ public class OrbitCameraController {
         Vector3f position = camera.getPosition();
         Vector3f target = camera.getTarget();
         
-        // Вычисляем смещение камеры от цели
         Vector3f offset = position.subtract(target);
         
-        // Вычисляем радиус (расстояние от цели до камеры)
         float radius = offset.length();
         if (radius < 1e-6f) {
-            // Если камера слишком близко к цели, устанавливаем минимальное расстояние
             radius = 1.0f;
             offset = new Vector3f(0, 0, radius);
         }
         
-        // Преобразуем в сферические координаты
-        // theta - горизонтальный угол (азимут) в плоскости XZ
-        // phi - вертикальный угол (угол возвышения) от оси Y
         float theta = (float) Math.atan2(offset.x, offset.z);
         float phi = (float) Math.acos(Math.max(-1.0, Math.min(1.0, offset.y / radius)));
         
-        // Обновляем углы
-        // deltaX - поворот вокруг вертикальной оси (Y)
-        // deltaY - поворот вокруг горизонтальной оси (вверх/вниз)
         theta += deltaX;
         phi += deltaY;
         
-        // Ограничиваем phi, чтобы камера не проходила через полюса
         phi = Math.max(0.01f, Math.min((float) Math.PI - 0.01f, phi));
         
-        // Преобразуем обратно в декартовы координаты
-        // Используем стандартную формулу для сферических координат:
-        // x = r * sin(phi) * sin(theta)
-        // y = r * cos(phi)
-        // z = r * sin(phi) * cos(theta)
         float sinPhi = (float) Math.sin(phi);
         float cosPhi = (float) Math.cos(phi);
         float sinTheta = (float) Math.sin(theta);
@@ -256,8 +224,6 @@ public class OrbitCameraController {
         camera.setPosition(newPosition);
     }
     
-    // ========== Зум камеры ==========
-    
     /**
      * Приближение/отдаление камеры (зум)
      * Для орбитальной камеры изменяем радиус напрямую
@@ -268,25 +234,20 @@ public class OrbitCameraController {
         Vector3f position = camera.getPosition();
         Vector3f target = camera.getTarget();
         
-        // Вычисляем текущее смещение и радиус
         Vector3f offset = position.subtract(target);
         float radius = offset.length();
         
         if (radius < 1e-6f) {
-            // Если камера слишком близко, устанавливаем минимальное расстояние
             radius = 1.0f;
         }
         
-        // Изменяем радиус (положительный delta уменьшает радиус - приближение)
         float zoomFactor = (float) (delta * zoomSensitivity * 0.01);
         float newRadius = Math.max(0.1f, radius - zoomFactor);
         
-        // Если радиус не изменился, выходим
         if (Math.abs(newRadius - radius) < 1e-6f) {
             return;
         }
         
-        // Нормализуем offset и умножаем на новый радиус
         Vector3f normalizedOffset = offset.normalize();
         Vector3f newOffset = normalizedOffset.multiply(newRadius);
         Vector3f newPosition = target.add(newOffset);
@@ -307,8 +268,6 @@ public class OrbitCameraController {
     public void zoomOut() {
         zoom(-1.0);
     }
-    
-    // ========== Сброс камеры ==========
     
     /**
      * Сбрасывает камеру в начальное положение
@@ -335,8 +294,6 @@ public class OrbitCameraController {
         this.initialTarget.y = target.y;
         this.initialTarget.z = target.z;
     }
-    
-    // ========== Управление состоянием мыши (для JavaFX) ==========
     
     /**
      * Обработка нажатия мыши
@@ -385,8 +342,6 @@ public class OrbitCameraController {
     public void onMouseScroll(double deltaY) {
         zoom(deltaY);
     }
-    
-    // ========== Геттеры ==========
     
     /**
      * Получить управляемую камеру

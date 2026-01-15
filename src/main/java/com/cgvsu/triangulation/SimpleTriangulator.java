@@ -19,12 +19,10 @@ public class SimpleTriangulator implements Triangulator {
     public List<Polygon> triangulatePolygon(Model model, Polygon polygon) {
         ArrayList<Integer> verticesIndexes = polygon.getVertexIndices();
         
-        // Если полигон уже треугольник или меньше, возвращаем копию
         if (verticesIndexes.size() <= 3) {
             return List.of(PolygonUtil.deepCopyOfPolygon(polygon));
         }
         
-        // Создаем карты для текстурных координат и нормалей
         Map<Integer, Integer> textureIndexesMap = new HashMap<>();
         Map<Integer, Integer> normalsIndexesMap = new HashMap<>();
         
@@ -41,7 +39,6 @@ public class SimpleTriangulator implements Triangulator {
             }
         }
         
-        // Создаем треугольники последовательно
         List<Polygon> newPolygons = new ArrayList<>();
         int n = verticesIndexes.size();
         int firstVertexIndex = 0;

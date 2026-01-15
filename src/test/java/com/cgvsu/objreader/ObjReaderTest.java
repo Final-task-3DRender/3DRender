@@ -41,25 +41,22 @@ class ObjReaderTest {
         ArrayList<String> wordsInLineWithoutToken = new ArrayList<>(Arrays.asList("1.0", "2.0"));
         try {
             ObjReader.parseVertex(wordsInLineWithoutToken, 10);
+            Assertions.fail("Should throw exception");
         } catch (ObjReaderException exception) {
-            String expectedError = "Error parsing OBJ file on line: 10. Too few vertex arguments.";
+            String expectedError = "Error parsing OBJ file on line: 10. Too few arguments for vertex.";
             Assertions.assertEquals(expectedError, exception.getMessage());
         }
     }
 
     @Test
     public void testParseVertex05() {
-        // АГААА! Вот тест, который говорит, что у метода нет проверки на более, чем 3 числа
-        // А такой случай лучше не игнорировать, а сообщать пользователю, что у него что-то не так
-        // ассерт, чтобы не забыть про тест:
-        Assertions.assertTrue(false);
-
-
+        // Тест проверяет, что метод корректно обрабатывает слишком много аргументов
         ArrayList<String> wordsInLineWithoutToken = new ArrayList<>(Arrays.asList("1.0", "2.0", "3.0", "4.0"));
         try {
             ObjReader.parseVertex(wordsInLineWithoutToken, 10);
+            Assertions.fail("Should throw exception");
         } catch (ObjReaderException exception) {
-            String expectedError = "";
+            String expectedError = "Error parsing OBJ file on line: 10. Too many arguments for vertex. Expected 3, got 4.";
             Assertions.assertEquals(expectedError, exception.getMessage());
         }
     }

@@ -104,7 +104,6 @@ public class AffineMatrixFactory {
         Matrix4f rotY = createRotationYMatrix(ry);
         Matrix4f rotZ = createRotationZMatrix(rz);
 
-        // Порядок: сначала X, потом Y, потом Z
         return rotX.multiply(rotY).multiply(rotZ);
     }
 
