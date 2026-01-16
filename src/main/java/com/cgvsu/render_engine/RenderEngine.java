@@ -50,6 +50,14 @@ public class RenderEngine {
     
     // ThreadLocal для переиспользования ZBuffer между кадрами
     private static final ThreadLocal<ZBuffer> zBufferCache = new ThreadLocal<>();
+    
+    // Пороги для оптимизации пропуска полигонов при большом количестве
+    private static final int POLYGON_SKIP_THRESHOLD_1 = 10000;
+    private static final int POLYGON_SKIP_THRESHOLD_2 = 50000;
+    private static final int POLYGON_SKIP_THRESHOLD_3 = 100000;
+    
+    // Эпсилон для проверки деления на w (перспективное деление)
+    private static final float W_EPSILON = 1e-7f;
 
     /**
      * Рендерит модель без трансформаций и с настройками по умолчанию.
@@ -179,12 +187,12 @@ public class RenderEngine {
         final int nPolygons = mesh.getPolygonCount();
         
         int polygonSkip = 1;
-        if (nPolygons > 10000) {
-            polygonSkip = 2;
-        } else if (nPolygons > 50000) {
-            polygonSkip = 3;
-        } else if (nPolygons > 100000) {
+        if (nPolygons > POLYGON_SKIP_THRESHOLD_3) {
             polygonSkip = 4;
+        } else if (nPolygons > POLYGON_SKIP_THRESHOLD_2) {
+            polygonSkip = 3;
+        } else if (nPolygons > POLYGON_SKIP_THRESHOLD_1) {
+            polygonSkip = 2;
         }
         
         // Переиспользуем списки для всех полигонов вместо создания новых
@@ -220,7 +228,7 @@ public class RenderEngine {
                 Vector4f transformed = modelViewProjectionMatrix.multiply(homogeneousVertex);
                 
                 float invW = 0.0f;
-                if (Math.abs(transformed.w) > 1e-7f) {
+                if (Math.abs(transformed.w) > W_EPSILON) {
                     invW = 1.0f / transformed.w;
                     transformed = transformed.divide(transformed.w);
                 } else {

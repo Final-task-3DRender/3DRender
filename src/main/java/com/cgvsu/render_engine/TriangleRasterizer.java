@@ -36,6 +36,13 @@ public class TriangleRasterizer {
     
     private static final double MAX_COORD_MULTIPLIER = 50.0;
     
+    // Эпсилоны для проверки деления на w (перспективное деление)
+    private static final double INV_W_EPSILON = 1e-7;
+    private static final double ONE_OVER_W_EPSILON = 1e-10;
+    
+    // Максимальное количество шагов для растеризации линии
+    private static final int MAX_LINE_STEPS = 100000;
+    
     /**
      * Заливает треугольник с интерполяцией цвета.
      * 
@@ -353,7 +360,7 @@ public class TriangleRasterizer {
                     
                     double zOverW = alpha * z0 * invW0 + beta * z1 * invW1 + gamma * z2 * invW2;
                     double oneOverW = alpha * invW0 + beta * invW1 + gamma * invW2;
-                    if (Math.abs(oneOverW) > 1e-10) {
+                    if (Math.abs(oneOverW) > ONE_OVER_W_EPSILON) {
                         leftZVal = (float) (zOverW / oneOverW);
                     } else {
                         leftZVal = (float) (alpha * z0 + beta * z1 + gamma * z2);
@@ -374,7 +381,7 @@ public class TriangleRasterizer {
                     
                     double zOverW = alpha * z0 * invW0 + beta * z1 * invW1 + gamma * z2 * invW2;
                     double oneOverW = alpha * invW0 + beta * invW1 + gamma * invW2;
-                    if (Math.abs(oneOverW) > 1e-10) {
+                    if (Math.abs(oneOverW) > ONE_OVER_W_EPSILON) {
                         rightZVal = (float) (zOverW / oneOverW);
                     } else {
                         rightZVal = (float) (alpha * z0 + beta * z1 + gamma * z2);
@@ -406,7 +413,7 @@ public class TriangleRasterizer {
                     double uOverW = alpha * (u0 * invW0) + beta * (u1 * invW1) + gamma * (u2 * invW2);
                     double vOverW = alpha * (v0 * invW0) + beta * (v1 * invW1) + gamma * (v2 * invW2);
                     leftInvWVal = (float) (alpha * invW0 + beta * invW1 + gamma * invW2);
-                    if (leftInvWVal > 1e-7f) {
+                    if (leftInvWVal > INV_W_EPSILON) {
                         leftUVal = (float) (uOverW / leftInvWVal);
                         leftVVal = (float) (vOverW / leftInvWVal);
                     } else {
@@ -431,7 +438,7 @@ public class TriangleRasterizer {
                     double uOverW = alpha * (u0 * invW0) + beta * (u1 * invW1) + gamma * (u2 * invW2);
                     double vOverW = alpha * (v0 * invW0) + beta * (v1 * invW1) + gamma * (v2 * invW2);
                     rightInvWVal = (float) (alpha * invW0 + beta * invW1 + gamma * invW2);
-                    if (rightInvWVal > 1e-7f) {
+                    if (rightInvWVal > INV_W_EPSILON) {
                         rightUVal = (float) (uOverW / rightInvWVal);
                         rightVVal = (float) (vOverW / rightInvWVal);
                     } else {
@@ -514,7 +521,7 @@ public class TriangleRasterizer {
                 
                 if (texture != null) {
                     double invW = leftInvW * (1.0 - t) + rightInvW * t;
-                    if (invW > 1e-7) {
+                    if (invW > INV_W_EPSILON) {
                         double uOverW = (leftU * leftInvW) * (1.0 - t) + (rightU * rightInvW) * t;
                         double vOverW = (leftV * leftInvW) * (1.0 - t) + (rightV * rightInvW) * t;
                         float u = (float) (uOverW / invW);
@@ -558,7 +565,7 @@ public class TriangleRasterizer {
                     
                     if (texture != null) {
                         double invW = leftInvW * (1.0 - t) + rightInvW * t;
-                        if (invW > 1e-7) {
+                        if (invW > INV_W_EPSILON) {
                             double uOverW = (leftU * leftInvW) * (1.0 - t) + (rightU * rightInvW) * t;
                             double vOverW = (leftV * leftInvW) * (1.0 - t) + (rightV * rightInvW) * t;
                             float u = (float) (uOverW / invW);
@@ -656,7 +663,7 @@ public class TriangleRasterizer {
                     Color pixelColor;
                     
                     if (texture != null) {
-                        if (Math.abs(oneOverW) > 1e-7) {
+                        if (Math.abs(oneOverW) > INV_W_EPSILON) {
                             double uOverW = alpha * (u0 * invW0) + beta * (u1 * invW1) + gamma * (u2 * invW2);
                             double vOverW = alpha * (v0 * invW0) + beta * (v1 * invW1) + gamma * (v2 * invW2);
                             float u = (float) (uOverW / oneOverW);
@@ -724,7 +731,7 @@ public class TriangleRasterizer {
         int sy = (y0 < y1) ? 1 : -1;
         int steps = Math.max(dx, dy);
         
-        if (steps > 100000) {
+        if (steps > MAX_LINE_STEPS) {
             return;
         }
 
@@ -745,7 +752,7 @@ public class TriangleRasterizer {
                     if (useZ) {
                         double zOverW = z0 * invW0 * (1.0 - t) + z1 * invW1 * t;
                         double oneOverW = invW0 * (1.0 - t) + invW1 * t;
-                        if (Math.abs(oneOverW) > 1e-10) {
+                        if (Math.abs(oneOverW) > ONE_OVER_W_EPSILON) {
                             z = (float) (zOverW / oneOverW);
                         } else {
                             z = (float) (z0 * (1.0 - t) + z1 * t);
@@ -970,7 +977,7 @@ public class TriangleRasterizer {
                 
                 if (texture != null) {
                     double invW = invW0 * (1.0 - t) + invW1 * t;
-                    if (invW > 1e-7) {
+                    if (invW > INV_W_EPSILON) {
                         double uOverW = (u0 * invW0) * (1.0 - t) + (u1 * invW1) * t;
                         double vOverW = (v0 * invW0) * (1.0 - t) + (v1 * invW1) * t;
                         float u = (float) (uOverW / invW);
@@ -991,7 +998,7 @@ public class TriangleRasterizer {
                     double zOverW = z0 * invW0 * (1.0 - t) + z1 * invW1 * t;
                     double oneOverW = invW0 * (1.0 - t) + invW1 * t;
                     float z;
-                    if (Math.abs(oneOverW) > 1e-10) {
+                    if (Math.abs(oneOverW) > ONE_OVER_W_EPSILON) {
                         z = (float) (zOverW / oneOverW);
                     } else {
                         z = (float) (z0 * (1.0 - t) + z1 * t);
