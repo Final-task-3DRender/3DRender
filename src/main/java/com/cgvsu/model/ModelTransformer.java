@@ -1,5 +1,6 @@
 package com.cgvsu.model;
 
+import com.cgvsu.exceptions.TransformationException;
 import com.cgvsu.math.Matrix4f;
 import com.cgvsu.math.Vector3f;
 import com.cgvsu.math.Vector4f;
@@ -39,10 +40,13 @@ public class ModelTransformer {
      */
     public static Model applyTransform(Model source, Matrix4f transform) {
         if (source == null) {
-            throw new IllegalArgumentException("Source model не должна быть null");
+            throw new TransformationException("Source model cannot be null");
         }
         if (transform == null) {
-            throw new IllegalArgumentException("Matrix transform не должна быть null");
+            throw new TransformationException("Transform matrix cannot be null");
+        }
+        if (source.vertices == null) {
+            throw new TransformationException("Source model vertices list cannot be null");
         }
 
         Model result = new Model();

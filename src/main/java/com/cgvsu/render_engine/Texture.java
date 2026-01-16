@@ -37,8 +37,13 @@ public class Texture {
      * @param filePath путь к файлу изображения
      * @return загруженная текстура
      * @throws IOException если не удалось загрузить изображение
+     * @throws IllegalArgumentException если filePath равен null или пустой
      */
     public static Texture loadFromFile(String filePath) throws IOException {
+        if (filePath == null || filePath.trim().isEmpty()) {
+            throw new IllegalArgumentException("File path cannot be null or empty");
+        }
+        
         File file = new File(filePath);
         if (!file.exists()) {
             throw new IOException("Texture file not found: " + filePath);
@@ -46,6 +51,9 @@ public class Texture {
         
         try (InputStream is = new FileInputStream(file)) {
             Image image = new Image(is);
+            if (image.isError()) {
+                throw new IOException("Failed to load image from file: " + filePath);
+            }
             return loadFromImage(image);
         }
     }
@@ -53,14 +61,31 @@ public class Texture {
     /**
      * Загружает текстуру из JavaFX Image.
      * 
-     * @param image изображение
+     * @param image изображение (не должно быть null)
      * @return загруженная текстура
+     * @throws IllegalArgumentException если image равен null или имеет некорректные размеры
      */
     public static Texture loadFromImage(Image image) {
+        if (image == null) {
+            throw new IllegalArgumentException("Image cannot be null");
+        }
+        
+        if (image.isError()) {
+            throw new IllegalArgumentException("Image has loading error");
+        }
+        
         int width = (int) image.getWidth();
         int height = (int) image.getHeight();
         
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("Image dimensions must be positive, got: " + width + "x" + height);
+        }
+        
         PixelReader pixelReader = image.getPixelReader();
+        if (pixelReader == null) {
+            throw new IllegalArgumentException("Image pixel reader is null - image may not be fully loaded");
+        }
+        
         Color[] pixels = new Color[width * height];
         
         for (int y = 0; y < height; y++) {

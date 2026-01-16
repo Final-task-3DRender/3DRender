@@ -80,6 +80,18 @@ public class RenderEngine {
             final int width,
             final int height)
     {
+        if (graphicsContext == null) {
+            throw new IllegalArgumentException("GraphicsContext cannot be null");
+        }
+        if (camera == null) {
+            throw new IllegalArgumentException("Camera cannot be null");
+        }
+        if (mesh == null) {
+            throw new IllegalArgumentException("Model cannot be null");
+        }
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("Width and height must be positive, got: " + width + "x" + height);
+        }
         RenderSettings defaultSettings = new RenderSettings();
         render(graphicsContext, camera, mesh, transform, width, height, defaultSettings);
     }
@@ -113,6 +125,19 @@ public class RenderEngine {
             final int height,
             final RenderSettings settings)
     {
+        if (graphicsContext == null) {
+            throw new IllegalArgumentException("GraphicsContext cannot be null");
+        }
+        if (camera == null) {
+            throw new IllegalArgumentException("Camera cannot be null");
+        }
+        if (mesh == null) {
+            throw new IllegalArgumentException("Model cannot be null");
+        }
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("Width and height must be positive, got: " + width + "x" + height);
+        }
+        
         if (settings == null) {
             render(graphicsContext, camera, mesh, transform, width, height);
             return;
@@ -159,7 +184,14 @@ public class RenderEngine {
             ArrayList<Float> resultInvW = new ArrayList<>();
             ArrayList<Vector4f> transformedVertices = new ArrayList<>();
             for (int vertexInPolygonInd = 0; vertexInPolygonInd < nVerticesInPolygon; ++vertexInPolygonInd) {
-                Vector3f vertex = mesh.vertices.get(polygon.getVertexIndices().get(vertexInPolygonInd));
+                int vertexIndex = polygon.getVertexIndices().get(vertexInPolygonInd);
+                if (vertexIndex < 0 || vertexIndex >= mesh.vertices.size()) {
+                    continue; // Пропускаем некорректные индексы
+                }
+                Vector3f vertex = mesh.vertices.get(vertexIndex);
+                if (vertex == null) {
+                    continue; // Пропускаем null вершины
+                }
 
                 Vector4f homogeneousVertex = new Vector4f(vertex, 1.0f);
                 Vector4f transformed = modelViewProjectionMatrix.multiply(homogeneousVertex);
@@ -188,6 +220,9 @@ public class RenderEngine {
                         continue;
                     }
                 } catch (Exception e) {
+                    // Если не удалось определить ориентацию полигона, пропускаем его
+                    // Это может произойти при некорректных нормалях или вырожденных полигонах
+                    continue;
                 }
             }
 
