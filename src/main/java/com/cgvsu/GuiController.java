@@ -63,6 +63,8 @@ import com.cgvsu.removers.VertexRemover;
 import com.cgvsu.math.Vector4f;
 import com.cgvsu.math.Point2f;
 import com.cgvsu.model.Polygon;
+import com.cgvsu.triangulation.EarCuttingTriangulator;
+import com.cgvsu.triangulation.Triangulator;
 import static com.cgvsu.render_engine.GraphicConveyor.vertexToPoint;
 
 /**
@@ -1134,7 +1136,7 @@ public class GuiController {
         
         if (pickResult.polygonIndex >= 0) {
             javafx.scene.control.MenuItem deletePolygonItem = new javafx.scene.control.MenuItem("Delete Polygon");
-            deletePolygonItem.setOnAction(e -> deletePolygonByIndex(current.getModel(), pickResult.polygonIndex));
+            deletePolygonItem.setOnAction(e -> deletePolygonByIndex(current.getModel(), pickResult));
             contextMenu.getItems().add(deletePolygonItem);
         }
         
@@ -1159,6 +1161,10 @@ public class GuiController {
         int vertexIndex = -1;
         double polygonDistance = Double.MAX_VALUE;
         double vertexDistance = Double.MAX_VALUE;
+        
+        // Для триангуляции: информация о выбранном треугольнике
+        int triangleIndexInPolygon = -1; // Индекс треугольника в исходном полигоне (-1 если треугольник не выбран)
+        Polygon selectedTriangle = null; // Выбранный треугольник (null если не триангуляция)
     }
 
     /**
@@ -1189,46 +1195,125 @@ public class GuiController {
 
         final double PICK_TOLERANCE = 10.0; // Радиус выбора в пикселях
 
-        // Ищем ближайший полигон
-        for (int i = 0; i < model.getPolygonCount(); i++) {
-            Polygon polygon = model.getPolygon(i);
-            ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
+        // Если триангуляция включена, триангулируем полигоны на лету при выборе,
+        // чтобы соответствовать тому, что пользователь видит на экране
+        boolean triangulationEnabled = renderSettings.isEnableTriangulation();
+        
+        if (triangulationEnabled) {
+            // Триангулируем полигоны на лету и проверяем треугольники
+            Triangulator triangulator = new EarCuttingTriangulator();
             
-            if (vertexIndices.size() < 3) {
-                continue;
-            }
-
-            // Преобразуем вершины полигона в экранные координаты
-            ArrayList<Point2f> screenPoints = new ArrayList<>();
-            for (int vertexIdx : vertexIndices) {
-                if (vertexIdx < 0 || vertexIdx >= model.getVertexCount()) {
-                    continue;
-                }
-                Vector3f vertex = model.getVertex(vertexIdx);
-                if (vertex == null) {
+            for (int i = 0; i < model.getPolygonCount(); i++) {
+                Polygon polygon = model.getPolygon(i);
+                ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
+                
+                if (vertexIndices.size() < 3) {
                     continue;
                 }
 
-                Vector4f homogeneousVertex = new Vector4f(vertex, 1.0f);
-                Vector4f transformed = mvpMatrix.multiply(homogeneousVertex);
-                
-                if (Math.abs(transformed.w) > 1e-7f) {
-                    transformed = transformed.divide(transformed.w);
+                // Если полигон с 4+ вершинами, триангулируем его
+                List<Polygon> triangles;
+                if (vertexIndices.size() > 3) {
+                    triangles = triangulator.triangulatePolygon(model, polygon);
+                } else {
+                    // Полигон уже треугольник
+                    triangles = List.of(polygon);
                 }
+
+                // Проверяем каждый треугольник
+                int triangleIdx = 0;
+                for (Polygon triangle : triangles) {
+                    ArrayList<Integer> triVertexIndices = triangle.getVertexIndices();
+                    
+                    if (triVertexIndices.size() < 3) {
+                        triangleIdx++;
+                        continue;
+                    }
+
+                    // Преобразуем вершины треугольника в экранные координаты
+                    ArrayList<Point2f> screenPoints = new ArrayList<>();
+                    for (int vertexIdx : triVertexIndices) {
+                        if (vertexIdx < 0 || vertexIdx >= model.getVertexCount()) {
+                            continue;
+                        }
+                        Vector3f vertex = model.getVertex(vertexIdx);
+                        if (vertex == null) {
+                            continue;
+                        }
+
+                        Vector4f homogeneousVertex = new Vector4f(vertex, 1.0f);
+                        Vector4f transformed = mvpMatrix.multiply(homogeneousVertex);
+                        
+                        if (Math.abs(transformed.w) > 1e-7f) {
+                            transformed = transformed.divide(transformed.w);
+                        }
+                        
+                        Point2f screenPoint = vertexToPoint(transformed, width, height);
+                        screenPoints.add(screenPoint);
+                    }
+
+                    if (screenPoints.size() < 3) {
+                        triangleIdx++;
+                        continue;
+                    }
+
+                    // Проверяем, находится ли точка внутри треугольника или близко к нему
+                    double distance = distanceToPolygon(screenPoints, mouseX, mouseY);
+                    if (distance < PICK_TOLERANCE && distance < result.polygonDistance) {
+                        // Сохраняем информацию о выбранном треугольнике
+                        result.polygonIndex = i;
+                        result.polygonDistance = distance;
+                        result.triangleIndexInPolygon = triangleIdx;
+                        result.selectedTriangle = triangle;
+                        // Найдя ближайший треугольник, выходим из цикла по треугольникам,
+                        // но продолжаем искать в других полигонах для лучшего совпадения
+                        break;
+                    }
+                    triangleIdx++;
+                }
+            }
+        } else {
+            // Триангуляция выключена, используем оригинальные полигоны
+            for (int i = 0; i < model.getPolygonCount(); i++) {
+                Polygon polygon = model.getPolygon(i);
+                ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
                 
-                Point2f screenPoint = vertexToPoint(transformed, width, height);
-                screenPoints.add(screenPoint);
-            }
+                if (vertexIndices.size() < 3) {
+                    continue;
+                }
 
-            if (screenPoints.size() < 3) {
-                continue;
-            }
+                // Преобразуем вершины полигона в экранные координаты
+                ArrayList<Point2f> screenPoints = new ArrayList<>();
+                for (int vertexIdx : vertexIndices) {
+                    if (vertexIdx < 0 || vertexIdx >= model.getVertexCount()) {
+                        continue;
+                    }
+                    Vector3f vertex = model.getVertex(vertexIdx);
+                    if (vertex == null) {
+                        continue;
+                    }
 
-            // Проверяем, находится ли точка внутри полигона или близко к нему
-            double distance = distanceToPolygon(screenPoints, mouseX, mouseY);
-            if (distance < PICK_TOLERANCE && distance < result.polygonDistance) {
-                result.polygonIndex = i;
-                result.polygonDistance = distance;
+                    Vector4f homogeneousVertex = new Vector4f(vertex, 1.0f);
+                    Vector4f transformed = mvpMatrix.multiply(homogeneousVertex);
+                    
+                    if (Math.abs(transformed.w) > 1e-7f) {
+                        transformed = transformed.divide(transformed.w);
+                    }
+                    
+                    Point2f screenPoint = vertexToPoint(transformed, width, height);
+                    screenPoints.add(screenPoint);
+                }
+
+                if (screenPoints.size() < 3) {
+                    continue;
+                }
+
+                // Проверяем, находится ли точка внутри полигона или близко к нему
+                double distance = distanceToPolygon(screenPoints, mouseX, mouseY);
+                if (distance < PICK_TOLERANCE && distance < result.polygonDistance) {
+                    result.polygonIndex = i;
+                    result.polygonDistance = distance;
+                }
             }
         }
 
@@ -1340,12 +1425,12 @@ public class GuiController {
     }
 
     /**
-     * Удаляет полигон по индексу.
+     * Удаляет полигон по индексу. При включенной триангуляции удаляет только выбранный треугольник.
      * 
      * @param model модель
-     * @param polygonIndex индекс полигона
+     * @param pickResult результат выбора с информацией о полигоне и треугольнике
      */
-    private void deletePolygonByIndex(Model model, int polygonIndex) {
+    private void deletePolygonByIndex(Model model, PickResult pickResult) {
         try {
             // Спрашиваем, удалять ли неиспользуемые вершины
             Alert confirmDialog = new Alert(AlertType.CONFIRMATION);
@@ -1367,10 +1452,45 @@ public class GuiController {
             
             boolean deleteFreeVertices = confirmResult.isPresent() && confirmResult.get() == yesButton;
             
-            Set<Integer> polygonIndicesToDelete = new HashSet<>();
-            polygonIndicesToDelete.add(polygonIndex);
+            int polygonIndex = pickResult.polygonIndex;
+            Polygon originalPolygon = model.getPolygon(polygonIndex);
             
-            PolygonRemover.deletePolygons(model, polygonIndicesToDelete, deleteFreeVertices);
+            // Если триангуляция включена и выбран конкретный треугольник
+            if (renderSettings.isEnableTriangulation() && 
+                pickResult.selectedTriangle != null && 
+                pickResult.triangleIndexInPolygon >= 0 &&
+                originalPolygon.getVertexIndices().size() > 3) {
+                
+                // Триангулируем исходный полигон
+                Triangulator triangulator = new EarCuttingTriangulator();
+                List<Polygon> triangles = triangulator.triangulatePolygon(model, originalPolygon);
+                
+                if (triangles.size() > 1 && pickResult.triangleIndexInPolygon < triangles.size()) {
+                    // Удаляем выбранный треугольник из списка
+                    triangles.remove(pickResult.triangleIndexInPolygon);
+                    
+                    // Удаляем исходный полигон
+                    Set<Integer> polygonIndicesToDelete = new HashSet<>();
+                    polygonIndicesToDelete.add(polygonIndex);
+                    PolygonRemover.deletePolygons(model, polygonIndicesToDelete, false);
+                    
+                    // Добавляем оставшиеся треугольники как новые полигоны
+                    for (Polygon remainingTriangle : triangles) {
+                        model.addPolygon(remainingTriangle);
+                    }
+                } else {
+                    // Если остался только один треугольник или это последний, удаляем весь полигон
+                    Set<Integer> polygonIndicesToDelete = new HashSet<>();
+                    polygonIndicesToDelete.add(polygonIndex);
+                    PolygonRemover.deletePolygons(model, polygonIndicesToDelete, deleteFreeVertices);
+                }
+            } else {
+                // Обычное удаление полигона
+                Set<Integer> polygonIndicesToDelete = new HashSet<>();
+                polygonIndicesToDelete.add(polygonIndex);
+                PolygonRemover.deletePolygons(model, polygonIndicesToDelete, deleteFreeVertices);
+            }
+            
             NormalCalculator.recalculateNormals(model);
             
             updateStatusBar();
