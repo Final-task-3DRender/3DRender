@@ -87,6 +87,34 @@ public class Camera {
     }
 
     /**
+     * Получает поле зрения камеры в радианах.
+     */
+    public float getFov() {
+        return fov;
+    }
+
+    /**
+     * Получает соотношение сторон камеры.
+     */
+    public float getAspectRatio() {
+        return aspectRatio;
+    }
+
+    /**
+     * Получает расстояние до ближней плоскости отсечения.
+     */
+    public float getNearPlane() {
+        return nearPlane;
+    }
+
+    /**
+     * Получает расстояние до дальней плоскости отсечения.
+     */
+    public float getFarPlane() {
+        return farPlane;
+    }
+
+    /**
      * Перемещает позицию камеры на указанный вектор.
      */
     public void movePosition(final Vector3f translation) {

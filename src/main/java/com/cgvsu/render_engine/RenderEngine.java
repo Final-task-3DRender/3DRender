@@ -51,6 +51,26 @@ public class RenderEngine {
     // ThreadLocal для переиспользования ZBuffer между кадрами
     private static final ThreadLocal<ZBuffer> zBufferCache = new ThreadLocal<>();
     
+    // Кэш для MVP матрицы с проверкой параметров
+    private static final class MatrixCache {
+        Matrix4f mvpMatrix;
+        // Параметры камеры
+        Vector3f cachedCameraPosition;
+        Vector3f cachedCameraTarget;
+        float cachedFov;
+        float cachedAspectRatio;
+        float cachedNearPlane;
+        float cachedFarPlane;
+        // Параметры трансформации
+        Vector3f cachedTransformPosition;
+        Vector3f cachedTransformRotation;
+        Vector3f cachedTransformScale;
+        // Размеры экрана
+        int cachedWidth;
+        int cachedHeight;
+    }
+    private static final ThreadLocal<MatrixCache> matrixCache = new ThreadLocal<>();
+    
     // Пороги для оптимизации пропуска полигонов при большом количестве
     private static final int POLYGON_SKIP_THRESHOLD_1 = 10000;
     private static final int POLYGON_SKIP_THRESHOLD_2 = 50000;
@@ -58,6 +78,20 @@ public class RenderEngine {
     
     // Эпсилон для проверки деления на w (перспективное деление)
     private static final float W_EPSILON = 1e-7f;
+    
+    // Эпсилон для сравнения параметров камеры и трансформации
+    private static final float PARAMETER_EPSILON = 1e-5f;
+    
+    /**
+     * Сравнивает два вектора с учетом эпсилона.
+     */
+    private static boolean vectorsEqual(Vector3f v1, Vector3f v2, float epsilon) {
+        if (v1 == null && v2 == null) return true;
+        if (v1 == null || v2 == null) return false;
+        return Math.abs(v1.x - v2.x) < epsilon &&
+               Math.abs(v1.y - v2.y) < epsilon &&
+               Math.abs(v1.z - v2.z) < epsilon;
+    }
 
     /**
      * Рендерит модель без трансформаций и с настройками по умолчанию.
@@ -169,13 +203,83 @@ public class RenderEngine {
             return;
         }
 
+        // Вычисляем model и view матрицы (нужны для backface culling)
         Matrix4f modelMatrix = ModelMatrixBuilder.build(transform);
         Matrix4f viewMatrix = camera.getViewMatrix();
-        Matrix4f projectionMatrix = camera.getProjectionMatrix();
-
-        Matrix4f modelViewProjectionMatrix = projectionMatrix
-                .multiply(viewMatrix)
-                .multiply(modelMatrix);
+        
+        // Кэширование MVP матрицы с проверкой параметров
+        MatrixCache cache = matrixCache.get();
+        
+        // Получаем текущие параметры для сравнения
+        Vector3f cameraPos = camera.getPosition();
+        Vector3f cameraTarget = camera.getTarget();
+        float fov = camera.getFov();
+        float aspectRatio = camera.getAspectRatio();
+        float nearPlane = camera.getNearPlane();
+        float farPlane = camera.getFarPlane();
+        
+        Vector3f transformPos = transform != null ? transform.getPosition() : new Vector3f(0, 0, 0);
+        Vector3f transformRot = transform != null ? transform.getRotation() : new Vector3f(0, 0, 0);
+        Vector3f transformScale = transform != null ? transform.getScale() : new Vector3f(1, 1, 1);
+        
+        Matrix4f modelViewProjectionMatrix = null;
+        boolean useCache = false;
+        
+        if (cache != null && cache.mvpMatrix != null) {
+            // Проверяем, изменились ли параметры
+            boolean cameraParamsMatch = 
+                vectorsEqual(cache.cachedCameraPosition, cameraPos, PARAMETER_EPSILON) &&
+                vectorsEqual(cache.cachedCameraTarget, cameraTarget, PARAMETER_EPSILON) &&
+                Math.abs(cache.cachedFov - fov) < PARAMETER_EPSILON &&
+                Math.abs(cache.cachedAspectRatio - aspectRatio) < PARAMETER_EPSILON &&
+                Math.abs(cache.cachedNearPlane - nearPlane) < PARAMETER_EPSILON &&
+                Math.abs(cache.cachedFarPlane - farPlane) < PARAMETER_EPSILON;
+            
+            boolean transformParamsMatch =
+                vectorsEqual(cache.cachedTransformPosition, transformPos, PARAMETER_EPSILON) &&
+                vectorsEqual(cache.cachedTransformRotation, transformRot, PARAMETER_EPSILON) &&
+                vectorsEqual(cache.cachedTransformScale, transformScale, PARAMETER_EPSILON);
+            
+            boolean sizeMatch = cache.cachedWidth == width && cache.cachedHeight == height;
+            
+            if (cameraParamsMatch && transformParamsMatch && sizeMatch) {
+                // Используем кэшированную матрицу
+                modelViewProjectionMatrix = cache.mvpMatrix;
+                useCache = true;
+            }
+        }
+        
+        if (!useCache) {
+            // Пересчитываем MVP матрицу
+            Matrix4f projectionMatrix = camera.getProjectionMatrix();
+            modelViewProjectionMatrix = projectionMatrix
+                    .multiply(viewMatrix)
+                    .multiply(modelMatrix);
+            
+            // Сохраняем в кэш
+            if (cache == null) {
+                cache = new MatrixCache();
+                matrixCache.set(cache);
+            }
+            cache.mvpMatrix = modelViewProjectionMatrix;
+            // Сохраняем параметры камеры
+            cache.cachedCameraPosition = new Vector3f(cameraPos);
+            cache.cachedCameraTarget = new Vector3f(cameraTarget);
+            cache.cachedFov = fov;
+            cache.cachedAspectRatio = aspectRatio;
+            cache.cachedNearPlane = nearPlane;
+            cache.cachedFarPlane = farPlane;
+            // Сохраняем параметры трансформации
+            cache.cachedTransformPosition = new Vector3f(transformPos);
+            cache.cachedTransformRotation = new Vector3f(transformRot);
+            cache.cachedTransformScale = new Vector3f(transformScale);
+            // Сохраняем размеры
+            cache.cachedWidth = width;
+            cache.cachedHeight = height;
+        }
+        
+        // modelViewProjectionMatrix гарантированно инициализирована здесь
+        assert modelViewProjectionMatrix != null;
 
         Color triangleColor = settings.getFillColor();
         Color wireframeColor = settings.getWireframeColor();
