@@ -137,14 +137,10 @@ class ModelTransformerTest {
         Assertions.assertNotNull(result);
         Assertions.assertEquals(3, result.getNormalCount());
         
-        // Нормали должны быть масштабированы, но НЕ перемещены (w=0)
-        // Первая нормаль (1,0,0) после масштабирования на 2 должна остаться (1,0,0) после нормализации
         Vector3f normal0 = result.getNormal(0);
         float length0 = normal0.length();
         Assertions.assertEquals(1.0f, length0, EPSILON, "Normal should be normalized");
         
-        // Проверяем, что нормали не были перемещены (перенос не влияет на нормали)
-        // Нормаль (1,0,0) после масштабирования на 2 и нормализации должна остаться (1,0,0)
         Assertions.assertEquals(1.0f, Math.abs(normal0.x), EPSILON);
         Assertions.assertEquals(0.0f, normal0.y, EPSILON);
         Assertions.assertEquals(0.0f, normal0.z, EPSILON);
@@ -295,9 +291,12 @@ class ModelTransformerTest {
         Matrix4f transform = Matrix4f.identity();
         Model result = ModelTransformer.applyTransform(source, transform);
         
-        // Null вершина должна остаться null
+        // Null вершина преобразуется в Vector3f(0, 0, 0) для безопасности
         Assertions.assertEquals(2, result.getVertexCount());
-        Assertions.assertNull(result.getVertex(0));
+        Assertions.assertNotNull(result.getVertex(0));
+        Assertions.assertEquals(0.0f, result.getVertex(0).x, 1e-6f);
+        Assertions.assertEquals(0.0f, result.getVertex(0).y, 1e-6f);
+        Assertions.assertEquals(0.0f, result.getVertex(0).z, 1e-6f);
         Assertions.assertNotNull(result.getVertex(1));
     }
     
@@ -314,9 +313,12 @@ class ModelTransformerTest {
         Matrix4f transform = Matrix4f.identity();
         Model result = ModelTransformer.applyTransform(source, transform);
         
-        // Null нормаль должна остаться null
+        // Null нормаль преобразуется в Vector3f(0, 0, 1) (нормализованная) для безопасности
         Assertions.assertEquals(2, result.getNormalCount());
-        Assertions.assertNull(result.getNormal(0));
+        Assertions.assertNotNull(result.getNormal(0));
+        Assertions.assertEquals(0.0f, result.getNormal(0).x, 1e-6f);
+        Assertions.assertEquals(0.0f, result.getNormal(0).y, 1e-6f);
+        Assertions.assertEquals(1.0f, result.getNormal(0).z, 1e-6f);
         Assertions.assertNotNull(result.getNormal(1));
     }
     

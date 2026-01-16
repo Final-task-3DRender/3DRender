@@ -11,23 +11,12 @@ import java.util.Map;
 /**
  * Утилитный класс для вычисления нормалей полигонов и вершин 3D моделей.
  * 
- * <p>Реализует задание для третьего человека: "Нормали следует пересчитывать даже если те сохранены в файле,
- * потому что мы не можем им доверять."
- * 
  * <p>Нормали необходимы для:
  * <ul>
- *   <li>Правильного расчета освещения (задание для третьего человека)</li>
+ *   <li>Правильного расчета освещения</li>
  *   <li>Определения ориентации граней (front-facing/back-facing) для backface culling</li>
- *   <li>Визуализации сглаженных поверхностей (smooth shading) - сглаживание нормалей</li>
+ *   <li>Визуализации сглаженных поверхностей (smooth shading)</li>
  * </ul>
- * 
- * <p>Алгоритм вычисления нормалей (согласно теории):
- * <ol>
- *   <li>Для каждого полигона вычисляется нормаль как векторное произведение двух сторон треугольника</li>
- *   <li>Нормаль нормализуется (приводится к единичной длине)</li>
- *   <li>Для каждой вершины накапливаются нормали всех полигонов, содержащих эту вершину</li>
- *   <li>Нормали вершин нормализуются (для smooth shading)</li>
- * </ol>
  * 
  * <p>Нормали полигонов вычисляются как векторное произведение двух сторон треугольника.
  * Нормали вершин вычисляются как среднее значение нормалей всех полигонов, содержащих эту вершину.
@@ -76,7 +65,7 @@ public class NormalCalculator {
             if (idx0 < 0 || idx0 >= model.getVertexCount() ||
                 idx1 < 0 || idx1 >= model.getVertexCount() ||
                 idx2 < 0 || idx2 >= model.getVertexCount()) {
-                continue; // Пропускаем полигоны с некорректными индексами
+                continue;
             }
             
             Vector3f v0 = model.getVertex(idx0);
@@ -84,7 +73,7 @@ public class NormalCalculator {
             Vector3f v2 = model.getVertex(idx2);
             
             if (v0 == null || v1 == null || v2 == null) {
-                continue; // Пропускаем полигоны с null вершинами
+                continue;
             }
             
             Vector3f edge1 = v1.subtract(v0);
@@ -136,13 +125,13 @@ public class NormalCalculator {
      */
     public static Vector3f calculatePolygonNormal(Model model, Polygon polygon) {
         if (model == null || polygon == null || model.getVertexCount() == 0) {
-            return new Vector3f(0, 0, 1); // Нормаль по умолчанию
+            return new Vector3f(0, 0, 1);
         }
         
         ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
         
         if (vertexIndices.size() < 3) {
-            return new Vector3f(0, 0, 1); // Нормаль по умолчанию
+            return new Vector3f(0, 0, 1);
         }
         
         int idx0 = vertexIndices.get(0);
@@ -152,7 +141,7 @@ public class NormalCalculator {
         if (idx0 < 0 || idx0 >= model.getVertexCount() ||
             idx1 < 0 || idx1 >= model.getVertexCount() ||
             idx2 < 0 || idx2 >= model.getVertexCount()) {
-            return new Vector3f(0, 0, 1); // Нормаль по умолчанию
+            return new Vector3f(0, 0, 1);
         }
         
         Vector3f v0 = model.getVertex(idx0);
@@ -160,7 +149,7 @@ public class NormalCalculator {
         Vector3f v2 = model.getVertex(idx2);
         
         if (v0 == null || v1 == null || v2 == null) {
-            return new Vector3f(0, 0, 1); // Нормаль по умолчанию
+            return new Vector3f(0, 0, 1);
         }
         
         Vector3f edge1 = v1.subtract(v0);
@@ -170,7 +159,7 @@ public class NormalCalculator {
         try {
             return normal.normalize();
         } catch (ArithmeticException e) {
-            return new Vector3f(0, 0, 1); // Нормаль по умолчанию для вырожденного треугольника
+            return new Vector3f(0, 0, 1);
         }
     }
 }

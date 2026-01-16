@@ -59,38 +59,29 @@ public class RenderEngine {
 
     private static final Logger logger = Logger.getLogger(RenderEngine.class.getName());
     
-    // ThreadLocal для переиспользования ZBuffer между кадрами
     private static final ThreadLocal<ZBuffer> zBufferCache = new ThreadLocal<>();
     
-    // Кэш для MVP матрицы с проверкой параметров
     private static final class MatrixCache {
         Matrix4f mvpMatrix;
-        // Параметры камеры
         Vector3f cachedCameraPosition;
         Vector3f cachedCameraTarget;
         float cachedFov;
         float cachedAspectRatio;
         float cachedNearPlane;
         float cachedFarPlane;
-        // Параметры трансформации
         Vector3f cachedTransformPosition;
         Vector3f cachedTransformRotation;
         Vector3f cachedTransformScale;
-        // Размеры экрана
         int cachedWidth;
         int cachedHeight;
     }
     private static final ThreadLocal<MatrixCache> matrixCache = new ThreadLocal<>();
     
-    // Пороги для оптимизации пропуска полигонов при большом количестве
     private static final int POLYGON_SKIP_THRESHOLD_1 = 10000;
     private static final int POLYGON_SKIP_THRESHOLD_2 = 50000;
     private static final int POLYGON_SKIP_THRESHOLD_3 = 100000;
     
-    // Эпсилон для проверки деления на w (перспективное деление)
     private static final float W_EPSILON = 1e-7f;
-    
-    // Эпсилон для сравнения параметров камеры и трансформации
     private static final float PARAMETER_EPSILON = 1e-5f;
     
     /**
@@ -199,14 +190,13 @@ public class RenderEngine {
             throw new IllegalArgumentException("Width and height must be positive, got: " + width + "x" + height);
         }
         
-        // Валидация модели
         if (mesh.getVertexCount() == 0) {
             logger.log(Level.FINE, "Попытка рендеринга пустой модели (нет вершин)");
-            return; // Нет смысла рендерить пустую модель
+            return;
         }
         if (mesh.getPolygonCount() == 0) {
             logger.log(Level.FINE, "Попытка рендеринга модели без полигонов");
-            return; // Нет смысла рендерить модель без полигонов
+            return;
         }
         
         if (settings == null) {
@@ -214,14 +204,11 @@ public class RenderEngine {
             return;
         }
 
-        // Вычисляем model и view матрицы (нужны для backface culling)
         Matrix4f modelMatrix = ModelMatrixBuilder.build(transform);
         Matrix4f viewMatrix = camera.getViewMatrix();
         
-        // Кэширование MVP матрицы с проверкой параметров
         MatrixCache cache = matrixCache.get();
         
-        // Получаем текущие параметры для сравнения
         Vector3f cameraPos = camera.getPosition();
         Vector3f cameraTarget = camera.getTarget();
         float fov = camera.getFov();
@@ -237,7 +224,6 @@ public class RenderEngine {
         boolean useCache = false;
         
         if (cache != null && cache.mvpMatrix != null) {
-            // Проверяем, изменились ли параметры
             boolean cameraParamsMatch = 
                 vectorsEqual(cache.cachedCameraPosition, cameraPos, PARAMETER_EPSILON) &&
                 vectorsEqual(cache.cachedCameraTarget, cameraTarget, PARAMETER_EPSILON) &&
@@ -254,62 +240,49 @@ public class RenderEngine {
             boolean sizeMatch = cache.cachedWidth == width && cache.cachedHeight == height;
             
             if (cameraParamsMatch && transformParamsMatch && sizeMatch) {
-                // Используем кэшированную матрицу
                 modelViewProjectionMatrix = cache.mvpMatrix;
                 useCache = true;
             }
         }
         
         if (!useCache) {
-            // Пересчитываем MVP матрицу
             Matrix4f projectionMatrix = camera.getProjectionMatrix();
             modelViewProjectionMatrix = projectionMatrix
                     .multiply(viewMatrix)
                     .multiply(modelMatrix);
             
-            // Сохраняем в кэш
             if (cache == null) {
                 cache = new MatrixCache();
                 matrixCache.set(cache);
             }
             cache.mvpMatrix = modelViewProjectionMatrix;
-            // Сохраняем параметры камеры
             cache.cachedCameraPosition = new Vector3f(cameraPos);
             cache.cachedCameraTarget = new Vector3f(cameraTarget);
             cache.cachedFov = fov;
             cache.cachedAspectRatio = aspectRatio;
             cache.cachedNearPlane = nearPlane;
             cache.cachedFarPlane = farPlane;
-            // Сохраняем параметры трансформации
             cache.cachedTransformPosition = new Vector3f(transformPos);
             cache.cachedTransformRotation = new Vector3f(transformRot);
             cache.cachedTransformScale = new Vector3f(transformScale);
-            // Сохраняем размеры
             cache.cachedWidth = width;
             cache.cachedHeight = height;
         }
         
-        // modelViewProjectionMatrix гарантированно инициализирована здесь
         assert modelViewProjectionMatrix != null;
 
-        // Задание для третьего человека: "Режимы отрисовки"
-        // Статический цвет для заливки (используется, если текстура не включена)
         Color triangleColor = settings.getFillColor();
         Color wireframeColor = settings.getWireframeColor();
 
-        // Fix for transparency: Log Z-buffer status only once (FINE level to avoid spam)
-        // Checked at FINE level to avoid excessive logging during rendering loop
         logger.log(Level.FINE, "Z-buffer enabled: {0}", settings.isEnableZBuffer());
         
         ZBuffer zBuffer = null;
         if (settings.isEnableZBuffer()) {
-            // Переиспользуем ZBuffer из кэша, если размер совпадает
             ZBuffer cached = zBufferCache.get();
             if (cached != null && cached.getWidth() == width && cached.getHeight() == height) {
                 zBuffer = cached;
                 zBuffer.clear();
             } else {
-                // Создаем новый ZBuffer при первом использовании или при изменении размера
                 zBuffer = new ZBuffer(width, height);
                 zBufferCache.set(zBuffer);
             }
@@ -326,34 +299,32 @@ public class RenderEngine {
             polygonSkip = 2;
         }
         
-        // Переиспользуем списки для всех полигонов вместо создания новых
-        ArrayList<Point2f> resultPoints = new ArrayList<>();
-        ArrayList<Float> resultZ = new ArrayList<>();
-        ArrayList<Float> resultInvW = new ArrayList<>();
-        ArrayList<Vector4f> transformedVertices = new ArrayList<>();
-        
-        for (int polygonInd = 0; polygonInd < nPolygons; polygonInd += polygonSkip) {
-            Polygon polygon = mesh.getPolygon(polygonInd);
-            final int nVerticesInPolygon = polygon.getVertexIndices().size();
+                ArrayList<Point2f> resultPoints = new ArrayList<>();
+                ArrayList<Float> resultZ = new ArrayList<>();
+                ArrayList<Float> resultInvW = new ArrayList<>();
+                ArrayList<Vector4f> transformedVertices = new ArrayList<>();
+                
+                for (int polygonInd = 0; polygonInd < nPolygons; polygonInd += polygonSkip) {
+                    Polygon polygon = mesh.getPolygon(polygonInd);
+                    final int nVerticesInPolygon = polygon.getVertexIndices().size();
 
-            if (nVerticesInPolygon < 3) {
-                continue;
-            }
+                    if (nVerticesInPolygon < 3) {
+                        continue;
+                    }
 
-            // Очищаем списки для переиспользования
-            resultPoints.clear();
-            resultZ.clear();
-            resultInvW.clear();
-            transformedVertices.clear();
-            for (int vertexInPolygonInd = 0; vertexInPolygonInd < nVerticesInPolygon; ++vertexInPolygonInd) {
-                int vertexIndex = polygon.getVertexIndices().get(vertexInPolygonInd);
-                if (vertexIndex < 0 || vertexIndex >= mesh.getVertexCount()) {
-                    continue; // Пропускаем некорректные индексы
-                }
-                Vector3f vertex = mesh.getVertex(vertexIndex);
-                if (vertex == null) {
-                    continue; // Пропускаем null вершины
-                }
+                    resultPoints.clear();
+                    resultZ.clear();
+                    resultInvW.clear();
+                    transformedVertices.clear();
+                    for (int vertexInPolygonInd = 0; vertexInPolygonInd < nVerticesInPolygon; ++vertexInPolygonInd) {
+                        int vertexIndex = polygon.getVertexIndices().get(vertexInPolygonInd);
+                        if (vertexIndex < 0 || vertexIndex >= mesh.getVertexCount()) {
+                            continue;
+                        }
+                        Vector3f vertex = mesh.getVertex(vertexIndex);
+                        if (vertex == null) {
+                            continue;
+                        }
 
                 Vector4f homogeneousVertex = new Vector4f(vertex, 1.0f);
                 Vector4f transformed = modelViewProjectionMatrix.multiply(homogeneousVertex);
@@ -366,15 +337,10 @@ public class RenderEngine {
                     invW = 1e7f;
                 }
                 
-                // Fix for transparency: Clamp Z values to [-1, 1] NDC range to ensure valid Z-buffer values
-                // This prevents overflow issues and ensures correct depth testing.
-                // Note: We clamp instead of skipping to avoid losing entire polygons when vertices
-                // are slightly outside the range. Invalid values (NaN, Infinity) are still filtered.
                 float ndcZ = transformed.z;
                 if (Float.isNaN(ndcZ) || Float.isInfinite(ndcZ)) {
-                    continue; // Skip invalid Z values (NaN, Infinity)
+                    continue;
                 }
-                // Clamp Z to valid NDC range [-1, 1]
                 ndcZ = Math.max(-1.0f, Math.min(1.0f, ndcZ));
                 
                 transformedVertices.add(transformed);
@@ -385,10 +351,8 @@ public class RenderEngine {
                 resultPoints.add(resultPoint);
             }
             
-            // Fix for transparency: Skip polygon if we don't have enough valid vertices after clipping
-            // This prevents rendering degenerate polygons that could cause transparency issues
             if (resultPoints.size() < 3) {
-                continue; // Skip polygon with insufficient vertices after clipping
+                continue;
             }
 
             if (settings.isEnableBackfaceCulling() && nVerticesInPolygon >= 3) {
@@ -397,27 +361,20 @@ public class RenderEngine {
                         continue;
                     }
                 } catch (Exception e) {
-                    // Если не удалось определить ориентацию полигона, пропускаем его
-                    // Это может произойти при некорректных нормалях или вырожденных полигонах
                     logger.log(Level.FINE, "Не удалось определить ориентацию полигона {0}: {1}", 
                         new Object[]{polygonInd, e.getMessage()});
                     continue;
                 }
             }
 
-            // Задание для третьего человека: "Растеризация полигонов"
-            // Если полигон имеет больше 3 вершин, триангулируем его динамически
-            // Триангуляция выполняется во время рендеринга, а не при загрузке модели
             if (nVerticesInPolygon > 3 && settings.isEnableTriangulation()) {
                 Triangulator triangulator = new EarCuttingTriangulator();
                 java.util.List<Polygon> triangles = triangulator.triangulatePolygon(mesh, polygon);
                 
-                // Рендерим каждый треугольник отдельно
                 for (Polygon triangle : triangles) {
                     ArrayList<Integer> triVertexIndices = triangle.getVertexIndices();
                     if (triVertexIndices.size() != 3) continue;
                     
-                    // Находим позиции вершин треугольника в исходном полигоне
                     int idx0 = -1, idx1 = -1, idx2 = -1;
                     ArrayList<Integer> polygonVertexIndices = polygon.getVertexIndices();
                     for (int i = 0; i < polygonVertexIndices.size(); i++) {
@@ -431,12 +388,10 @@ public class RenderEngine {
                         continue;
                     }
                     
-                    // Получаем UV координаты для треугольника
                     ArrayList<Integer> triTextureIndices = triangle.getTextureVertexIndices();
                     int[] triUVIndices = {0, 1, 2};
                     float[] uv = getUVCoordinates(mesh, triangle, triTextureIndices, triUVIndices);
                     
-                    // Создаем списки точек, Z и invW для треугольника
                     ArrayList<Point2f> triPoints = new ArrayList<>();
                     ArrayList<Float> triZ = new ArrayList<>();
                     ArrayList<Float> triInvW = new ArrayList<>();
@@ -450,31 +405,24 @@ public class RenderEngine {
                     triInvW.add(resultInvW.get(idx1));
                     triInvW.add(resultInvW.get(idx2));
                     
-                    // Рендерим треугольник
                     renderTriangle(graphicsContext, zBuffer, settings, triPoints, triZ, triInvW, uv, triangleColor, wireframeColor);
                 }
-                continue; // Пропускаем дальнейшую обработку полигона, так как уже обработали треугольники
+                continue;
             }
             
             if (nVerticesInPolygon == 3) {
-                // Треугольник - рендерим напрямую (задание для третьего человека: "Растеризация полигонов")
                 ArrayList<Integer> textureIndices = polygon.getTextureVertexIndices();
                 int[] vertexIndices = {0, 1, 2};
                 float[] uv = getUVCoordinates(mesh, polygon, textureIndices, vertexIndices);
                 
                 renderTriangle(graphicsContext, zBuffer, settings, resultPoints, resultZ, resultInvW, uv, triangleColor, wireframeColor);
             } else {
-                // Полигон с >3 вершинами - используем fan triangulation (без динамической триангуляции)
-                // Это fallback для случая, когда триангуляция отключена в настройках
-                // Задание для третьего человека: "Растеризация полигонов" - заполнение полигонов одним цветом
                 ArrayList<Integer> textureIndices = polygon.getTextureVertexIndices();
                 
-                // Fan triangulation: разбиваем на треугольники от первой вершины
                 for (int vertexInPolygonInd = 1; vertexInPolygonInd < nVerticesInPolygon - 1; ++vertexInPolygonInd) {
                     int[] triVertexIndices = {0, vertexInPolygonInd, vertexInPolygonInd + 1};
                     float[] uv = getUVCoordinates(mesh, polygon, textureIndices, triVertexIndices);
                     
-                    // Создаем списки для треугольника
                     ArrayList<Point2f> triPoints = new ArrayList<>();
                     ArrayList<Float> triZ = new ArrayList<>();
                     ArrayList<Float> triInvW = new ArrayList<>();
@@ -491,7 +439,6 @@ public class RenderEngine {
                     renderTriangle(graphicsContext, zBuffer, settings, triPoints, triZ, triInvW, uv, triangleColor, wireframeColor);
                 }
                 
-                // Отрисовываем wireframe для всего полигона
                 if (settings.isShowWireframe()) {
                     drawWireframePolygon(graphicsContext, wireframeColor, resultPoints);
                 }
@@ -560,7 +507,9 @@ public class RenderEngine {
      * 
      * @param graphicsContext контекст для отрисовки
      * @param wireframeColor цвет обводки
-     * @param p0, p1, p2 точки треугольника в экранных координатах
+     * @param p0 первая точка треугольника
+     * @param p1 вторая точка треугольника
+     * @param p2 третья точка треугольника
      */
     private static void drawWireframeTriangle(
             GraphicsContext graphicsContext,
@@ -646,11 +595,6 @@ public class RenderEngine {
     
     /**
      * Проверяет, является ли треугольник передней гранью, используя нормаль в пространстве камеры.
-     * Использует сохраненные нормали из модели (пересчитанные NormalCalculator), что более надежно.
-     * 
-     * <p>Fix for backface culling to prevent transparency: Always compute normal from vertices if stored
-     * normal is invalid (null or length < 1e-6f). Change fallback returns to false (skip polygon)
-     * for degenerate cases instead of true to prevent rendering invalid polygons.
      * 
      * @param mesh модель
      * @param polygonIndex индекс полигона
@@ -661,7 +605,7 @@ public class RenderEngine {
     private static boolean isFrontFacingByNormal(
             Model mesh, int polygonIndex, Matrix4f modelMatrix, Matrix4f viewMatrix) {
         if (polygonIndex >= mesh.getPolygonCount()) {
-            return false; // Fix: Skip invalid polygon indices to prevent transparency issues
+            return false;
         }
         
         Polygon polygon = mesh.getPolygon(polygonIndex);
@@ -674,53 +618,47 @@ public class RenderEngine {
             normalIndices != null && !normalIndices.isEmpty() && 
             normalIndices.get(0) >= 0 && normalIndices.get(0) < mesh.getNormalCount()) {
             normal = mesh.getNormal(normalIndices.get(0));
-            // Проверка на null нормаль
             if (normal == null) {
                 logger.log(Level.FINE, "Нормаль полигона {0} равна null, вычисляем из вершин", polygonIndex);
             } else {
-                // Проверка на валидность нормали (не должна быть нулевым вектором)
                 if (normal.length() < 1e-6f) {
                     logger.log(Level.FINE, "Нормаль полигона {0} является нулевым вектором, вычисляем из вершин", polygonIndex);
-                    normal = null; // Будет вычислена ниже
+                    normal = null;
                 } else {
                     useNormalFromArray = true;
                 }
             }
         }
         
-        // Вычисляем нормаль из вершин, если она не была получена из массива нормалей
         if (!useNormalFromArray) {
             ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
             if (vertexIndices.size() < 3) {
-                return false; // Fix: Skip polygons with <3 vertices instead of rendering them
+                return false;
             }
             
-            // Проверка на null вершины
             Vector3f v0 = mesh.getVertex(vertexIndices.get(0));
             Vector3f v1 = mesh.getVertex(vertexIndices.get(1));
             Vector3f v2 = mesh.getVertex(vertexIndices.get(2));
             
             if (v0 == null || v1 == null || v2 == null) {
                 logger.log(Level.FINE, "Полигон {0} содержит null вершины, пропускаем", polygonIndex);
-                return false; // Fix: Skip polygons with null vertices to prevent transparency issues
+                return false;
             }
             
-            // Проверка на вырожденный треугольник (вершины на одной прямой)
             Vector3f edge1 = v1.subtract(v0);
             Vector3f edge2 = v2.subtract(v0);
             normal = edge1.cross(edge2);
             
-            // Проверка на нулевой вектор (вырожденный треугольник)
             if (normal.length() < 1e-6f) {
                 logger.log(Level.FINE, "Полигон {0} является вырожденным (вершины на одной прямой)", polygonIndex);
-                return false; // Fix: Skip degenerate polygons instead of rendering them
+                return false;
             }
             
             try {
                 normal = normal.normalize();
             } catch (ArithmeticException e) {
                 logger.log(Level.FINE, "Вырожденный полигон {0}: невозможно нормализовать нормаль (нулевой вектор)", polygonIndex);
-                return false; // Fix: Skip polygons that cannot be normalized
+                return false;
             }
         }
         
@@ -733,10 +671,9 @@ public class RenderEngine {
             normalView3 = normalView3.normalize();
         } catch (ArithmeticException e) {
             logger.log(Level.FINE, "Вырожденная нормаль после трансформации: невозможно нормализовать");
-            return false; // Fix: Skip polygons with invalid transformed normals
+            return false;
         }
         
-        // Assuming camera looks down -Z: front-facing if normalView3.z < 0
         return normalView3.z < 0;
     }
 

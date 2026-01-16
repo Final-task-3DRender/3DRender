@@ -30,7 +30,7 @@ import java.util.Optional;
  *   <li>Сохранения моделей в OBJ файлы (с выбором: исходная или с трансформациями)</li>
  * </ul>
  * 
- * <p>Автоматически выполняет триангуляцию и пересчет нормалей при загрузке.
+ * <p>Автоматически выполняет пересчет нормалей при загрузке.
  * 
  * @author CGVSU Team
  * @version 1.0
@@ -66,11 +66,7 @@ public class FileOperationsHandler {
         String fileContent = Files.readString(fileName);
         
         Model mesh = ObjReader.read(fileContent);
-        
-        // Всегда пересчитываем нормали, даже если они есть в файле
-        // Это требование из задания: "Нормали следует пересчитывать даже если те сохранены в файле"
         NormalCalculator.recalculateNormals(mesh);
-        
         return mesh;
     }
     
