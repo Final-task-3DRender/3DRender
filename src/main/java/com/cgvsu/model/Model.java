@@ -29,27 +29,27 @@ public class Model {
      * Список вершин модели в трехмерном пространстве.
      * Каждая вершина представлена как Vector3f (x, y, z).
      */
-    ArrayList<Vector3f> vertices = new ArrayList<>();
+    public ArrayList<Vector3f> vertices = new ArrayList<>();
     
     /**
      * Список текстурных координат (UV координаты).
      * Каждая координата представлена как Vector2f (u, v), где значения обычно в диапазоне [0, 1].
      */
-    ArrayList<Vector2f> textureVertices = new ArrayList<>();
+    public ArrayList<Vector2f> textureVertices = new ArrayList<>();
     
     /**
      * Список нормалей вершин.
      * Нормали используются для расчета освещения и определения ориентации граней.
      * Каждая нормаль представлена как Vector3f и должна быть нормализована.
      */
-    ArrayList<Vector3f> normals = new ArrayList<>();
+    public ArrayList<Vector3f> normals = new ArrayList<>();
     
     /**
      * Список полигонов (граней) модели.
      * Каждый полигон ссылается на индексы вершин, текстурных координат и нормалей.
      * Полигоны должны быть триангулированы (состоять из треугольников) перед рендерингом.
      */
-    ArrayList<Polygon> polygons = new ArrayList<>();
+    public ArrayList<Polygon> polygons = new ArrayList<>();
 
     /**
      * Возвращает список вершин модели.
