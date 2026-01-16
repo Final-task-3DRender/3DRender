@@ -39,6 +39,9 @@
                 <Menu mnemonicParsing="false" text="Camera">
                     <MenuItem fx:id="resetCameraMenuItem" mnemonicParsing="false" onAction="#handleResetCamera" text="Reset Camera"/>
                 </Menu>
+                <Menu mnemonicParsing="false" text="View">
+                    <MenuItem fx:id="toggleThemeMenuItem" mnemonicParsing="false" onAction="#handleToggleTheme" text="Toggle Dark Theme"/>
+                </Menu>
                 <Menu mnemonicParsing="false" text="Help">
                     <MenuItem fx:id="helpMenuItem" mnemonicParsing="false" onAction="#onHelpMenuItemClick" text="Controls"/>
                 </Menu>
@@ -59,7 +62,7 @@
         </VBox>
     </top>
     <left>
-        <VBox spacing="10" style="-fx-padding: 10; -fx-background-color: #f5f5f5;" minWidth="250" prefWidth="250">
+        <VBox spacing="10" style="-fx-padding: 10;" minWidth="250" prefWidth="250">
             <TitledPane text="Transform" expanded="true">
                 <GridPane hgap="5" vgap="5" style="-fx-padding: 10;">
                     <!-- Position -->
@@ -136,7 +139,7 @@
         <Canvas fx:id="canvas" width="1600" height="870"/>
     </center>
     <right>
-        <VBox spacing="10" style="-fx-padding: 10; -fx-background-color: #f5f5f5;" minWidth="200" prefWidth="200">
+        <VBox spacing="10" style="-fx-padding: 10;" minWidth="200" prefWidth="200">
             <TitledPane text="Scene Info" expanded="true">
                 <VBox spacing="8" style="-fx-padding: 10;">
                     <Label text="Models in scene:" style="-fx-font-weight: bold;"/>
@@ -159,7 +162,7 @@
         </VBox>
     </right>
     <bottom>
-        <HBox fx:id="statusBar" spacing="10" style="-fx-padding: 5; -fx-background-color: #f0f0f0;">
+        <HBox fx:id="statusBar" spacing="10" style="-fx-padding: 5;">
             <Label fx:id="modelInfoLabel" text="No model loaded"/>
             <Separator orientation="VERTICAL"/>
             <Label fx:id="cameraPositionLabel" text="Camera Position: (0, 0, 100)"/>

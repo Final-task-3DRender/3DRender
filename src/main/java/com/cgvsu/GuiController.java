@@ -54,6 +54,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.Scene;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import com.cgvsu.ui.SceneModel;
@@ -125,6 +126,9 @@ public class GuiController {
     private MenuItem resetTransformMenuItem;
 
     @FXML
+    private MenuItem toggleThemeMenuItem;
+
+    @FXML
     private TextField positionXField, positionYField, positionZField;
     @FXML
     private Button positionXDecButton, positionXIncButton;
@@ -193,6 +197,8 @@ public class GuiController {
     private com.cgvsu.render_engine.RenderSettings renderSettings = new com.cgvsu.render_engine.RenderSettings();
     
     private ModelTransformController transformController;
+    
+    private boolean isDarkTheme = false;
 
     private Camera camera = new Camera(
             new Vector3f(initialCameraPosition),
@@ -258,6 +264,9 @@ public class GuiController {
         setupDisplaySettingsUI();
 
         cameraController = new OrbitCameraController(camera, initialCameraPosition, initialCameraTarget);
+
+        // Применяем тему при инициализации
+        applyTheme();
 
         updateStatusBar();
         updateTransformUI();
@@ -1428,6 +1437,47 @@ public class GuiController {
             
         } catch (Exception e) {
             showError("Error deleting vertex", "Failed to delete vertex: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Переключает тему приложения между светлой и темной.
+     */
+    @FXML
+    private void handleToggleTheme() {
+        isDarkTheme = !isDarkTheme;
+        applyTheme();
+    }
+
+    /**
+     * Применяет выбранную тему к сцене.
+     */
+    private void applyTheme() {
+        if (borderPane == null) {
+            return;
+        }
+
+        Scene scene = borderPane.getScene();
+        if (scene == null) {
+            return;
+        }
+
+        if (isDarkTheme) {
+            try {
+                String darkThemePath = getClass().getResource("/com/cgvsu/styles/dark-theme.css").toExternalForm();
+                scene.getStylesheets().clear();
+                scene.getStylesheets().add(darkThemePath);
+            } catch (Exception e) {
+                // Если не удалось загрузить тему, просто очищаем стили
+                scene.getStylesheets().clear();
+            }
+        } else {
+            scene.getStylesheets().clear();
+        }
+        
+        // Обновляем текст меню
+        if (toggleThemeMenuItem != null) {
+            toggleThemeMenuItem.setText(isDarkTheme ? "Toggle Light Theme" : "Toggle Dark Theme");
         }
     }
 }
