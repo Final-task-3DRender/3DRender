@@ -154,6 +154,16 @@ public class RenderEngine {
             throw new IllegalArgumentException("Width and height must be positive, got: " + width + "x" + height);
         }
         
+        // Валидация модели
+        if (mesh.getVertexCount() == 0) {
+            logger.log(Level.FINE, "Попытка рендеринга пустой модели (нет вершин)");
+            return; // Нет смысла рендерить пустую модель
+        }
+        if (mesh.getPolygonCount() == 0) {
+            logger.log(Level.FINE, "Попытка рендеринга модели без полигонов");
+            return; // Нет смысла рендерить модель без полигонов
+        }
+        
         if (settings == null) {
             render(graphicsContext, camera, mesh, transform, width, height);
             return;
@@ -402,30 +412,59 @@ public class RenderEngine {
         Polygon polygon = mesh.getPolygon(polygonIndex);
         ArrayList<Integer> normalIndices = polygon.getNormalIndices();
         
-        Vector3f normal;
+        Vector3f normal = null;
+        boolean useNormalFromArray = false;
         
         if (mesh.getNormalCount() > 0 && 
             normalIndices != null && !normalIndices.isEmpty() && 
-            normalIndices.get(0) < mesh.getNormalCount()) {
+            normalIndices.get(0) >= 0 && normalIndices.get(0) < mesh.getNormalCount()) {
             normal = mesh.getNormal(normalIndices.get(0));
-        } else {
+            // Проверка на null нормаль
+            if (normal == null) {
+                logger.log(Level.FINE, "Нормаль полигона {0} равна null, вычисляем из вершин", polygonIndex);
+            } else {
+                // Проверка на валидность нормали (не должна быть нулевым вектором)
+                if (normal.length() < 1e-6f) {
+                    logger.log(Level.FINE, "Нормаль полигона {0} является нулевым вектором, вычисляем из вершин", polygonIndex);
+                    normal = null; // Будет вычислена ниже
+                } else {
+                    useNormalFromArray = true;
+                }
+            }
+        }
+        
+        // Вычисляем нормаль из вершин, если она не была получена из массива нормалей
+        if (!useNormalFromArray) {
             ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
             if (vertexIndices.size() < 3) {
                 return true;
             }
             
+            // Проверка на null вершины
             Vector3f v0 = mesh.getVertex(vertexIndices.get(0));
             Vector3f v1 = mesh.getVertex(vertexIndices.get(1));
             Vector3f v2 = mesh.getVertex(vertexIndices.get(2));
             
+            if (v0 == null || v1 == null || v2 == null) {
+                logger.log(Level.FINE, "Полигон {0} содержит null вершины, пропускаем backface culling", polygonIndex);
+                return true; // Не можем определить ориентацию, считаем видимым
+            }
+            
+            // Проверка на вырожденный треугольник (вершины на одной прямой)
             Vector3f edge1 = v1.subtract(v0);
             Vector3f edge2 = v2.subtract(v0);
             normal = edge1.cross(edge2);
             
+            // Проверка на нулевой вектор (вырожденный треугольник)
+            if (normal.length() < 1e-6f) {
+                logger.log(Level.FINE, "Полигон {0} является вырожденным (вершины на одной прямой)", polygonIndex);
+                return true; // Вырожденный треугольник, считаем видимым
+            }
+            
             try {
                 normal = normal.normalize();
             } catch (ArithmeticException e) {
-                logger.log(Level.FINE, "Вырожденный полигон: невозможно нормализовать нормаль (нулевой вектор)");
+                logger.log(Level.FINE, "Вырожденный полигон {0}: невозможно нормализовать нормаль (нулевой вектор)", polygonIndex);
                 return true;
             }
         }
