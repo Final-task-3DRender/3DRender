@@ -172,6 +172,12 @@ public class RenderEngine {
             polygonSkip = 4;
         }
         
+        // Переиспользуем списки для всех полигонов вместо создания новых
+        ArrayList<Point2f> resultPoints = new ArrayList<>();
+        ArrayList<Float> resultZ = new ArrayList<>();
+        ArrayList<Float> resultInvW = new ArrayList<>();
+        ArrayList<Vector4f> transformedVertices = new ArrayList<>();
+        
         for (int polygonInd = 0; polygonInd < nPolygons; polygonInd += polygonSkip) {
             Polygon polygon = mesh.getPolygon(polygonInd);
             final int nVerticesInPolygon = polygon.getVertexIndices().size();
@@ -180,10 +186,11 @@ public class RenderEngine {
                 continue;
             }
 
-            ArrayList<Point2f> resultPoints = new ArrayList<>();
-            ArrayList<Float> resultZ = new ArrayList<>();
-            ArrayList<Float> resultInvW = new ArrayList<>();
-            ArrayList<Vector4f> transformedVertices = new ArrayList<>();
+            // Очищаем списки для переиспользования
+            resultPoints.clear();
+            resultZ.clear();
+            resultInvW.clear();
+            transformedVertices.clear();
             for (int vertexInPolygonInd = 0; vertexInPolygonInd < nVerticesInPolygon; ++vertexInPolygonInd) {
                 int vertexIndex = polygon.getVertexIndices().get(vertexInPolygonInd);
                 if (vertexIndex < 0 || vertexIndex >= mesh.getVertexCount()) {
