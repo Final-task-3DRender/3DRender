@@ -394,8 +394,8 @@ public class RenderEngine {
                 }
             }
 
-            // Если триангуляция включена и полигон имеет больше 3 вершин, триангулируем его динамически
-            if (nVerticesInPolygon > 3 && settings.isEnableTriangulation()) {
+            // Если полигон имеет больше 3 вершин, триангулируем его динамически
+            if (nVerticesInPolygon > 3) {
                 Triangulator triangulator = new EarCuttingTriangulator();
                 java.util.List<Polygon> triangles = triangulator.triangulatePolygon(mesh, polygon);
                 
@@ -443,7 +443,7 @@ public class RenderEngine {
                     }
                     
                     // Рендерим треугольник
-                    if (settings.isShowFilled() && settings.isEnableRasterization()) {
+                    if (settings.isShowFilled()) {
                         TriangleRasterizer.fillTriangle(
                             graphicsContext,
                             zBuffer,
@@ -473,24 +473,6 @@ public class RenderEngine {
                 continue; // Пропускаем дальнейшую обработку полигона, так как уже обработали треугольники
             }
             
-            // Если триангуляция выключена и полигон имеет больше 3 вершин, показываем только wireframe
-            if (nVerticesInPolygon > 3 && !settings.isEnableTriangulation()) {
-                if (settings.isShowWireframe()) {
-                    graphicsContext.setStroke(wireframeColor);
-                    for (int vertexInPolygonInd = 1; vertexInPolygonInd < nVerticesInPolygon; ++vertexInPolygonInd) {
-                        graphicsContext.strokeLine(
-                            resultPoints.get(vertexInPolygonInd - 1).x, resultPoints.get(vertexInPolygonInd - 1).y,
-                            resultPoints.get(vertexInPolygonInd).x, resultPoints.get(vertexInPolygonInd).y
-                        );
-                    }
-                    graphicsContext.strokeLine(
-                        resultPoints.get(nVerticesInPolygon - 1).x, resultPoints.get(nVerticesInPolygon - 1).y,
-                        resultPoints.get(0).x, resultPoints.get(0).y
-                    );
-                }
-                continue; // Пропускаем растеризацию для полигонов с >3 вершинами, если триангуляция выключена
-            }
-            
             if (nVerticesInPolygon == 3) {
                 float u0 = 0.0f, v0 = 0.0f, u1 = 0.0f, v1 = 0.0f, u2 = 0.0f, v2 = 0.0f;
                 Texture texture = settings.isUseTexture() ? settings.getTexture() : null;
@@ -515,7 +497,7 @@ public class RenderEngine {
                     }
                 }
                 
-                if (settings.isShowFilled() && settings.isEnableRasterization()) {
+                if (settings.isShowFilled()) {
                     TriangleRasterizer.fillTriangle(
                         graphicsContext,
                         zBuffer,
@@ -542,7 +524,7 @@ public class RenderEngine {
                     );
                 }
             } else {
-                if (settings.isShowFilled() && settings.isEnableRasterization()) {
+                if (settings.isShowFilled()) {
                     Texture texture = settings.isUseTexture() ? settings.getTexture() : null;
                     ArrayList<Integer> textureIndices = polygon.getTextureVertexIndices();
                     

@@ -180,11 +180,6 @@ public class GuiController {
     @FXML
     private Button loadTextureButton;
     
-    @FXML
-    private CheckBox enableTriangulationCheckBox;
-    
-    @FXML
-    private CheckBox enableRasterizationCheckBox;
 
     @FXML
     private Label textureNameLabel;
@@ -576,22 +571,6 @@ public class GuiController {
 
         if (textureNameLabel != null) {
             updateTextureLabel();
-        }
-        
-        if (enableTriangulationCheckBox != null) {
-            enableTriangulationCheckBox.setSelected(renderSettings.isEnableTriangulation());
-            enableTriangulationCheckBox.setOnAction(e -> {
-                renderSettings.setEnableTriangulation(enableTriangulationCheckBox.isSelected());
-                // Настройка триангуляции применяется динамически в RenderEngine
-                // Перезагрузка модели не требуется
-            });
-        }
-        
-        if (enableRasterizationCheckBox != null) {
-            enableRasterizationCheckBox.setSelected(renderSettings.isEnableRasterization());
-            enableRasterizationCheckBox.setOnAction(e -> {
-                renderSettings.setEnableRasterization(enableRasterizationCheckBox.isSelected());
-            });
         }
     }
 
