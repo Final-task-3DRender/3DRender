@@ -77,6 +77,36 @@ public class ZBuffer {
     }
     
     /**
+     * Проверяет и устанавливает Z без проверки границ (unsafe версия).
+     * Используется когда координаты уже гарантированно валидны.
+     * 
+     * @param x координата X пикселя (должна быть в пределах [0, width))
+     * @param y координата Y пикселя (должна быть в пределах [0, height))
+     * @param z глубина (Z-координата) пикселя после перспективной проекции
+     * @return true если пиксель нужно нарисовать (он ближе), false иначе
+     */
+    public boolean testAndSetUnsafe(int x, int y, float z) {
+        if (Float.isNaN(z) || Float.isInfinite(z)) {
+            return false;
+        }
+        
+        int index = y * width + x;
+        float currentZ = buffer[index];
+        
+        if (currentZ == UNINITIALIZED) {
+            buffer[index] = z;
+            return true;
+        }
+        
+        if (z > currentZ) {
+            buffer[index] = z;
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
      * Получает текущую глубину пикселя.
      * 
      * @param x координата X

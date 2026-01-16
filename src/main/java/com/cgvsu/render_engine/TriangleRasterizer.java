@@ -493,7 +493,8 @@ public class TriangleRasterizer {
             if (texture != null) {
                 pixelColor = texture.getPixel(leftU, leftV);
             }
-            if (zBuffer == null || zBuffer.testAndSet(xStart, y, leftZ)) {
+            // Используем unsafe версию, так как координаты уже проверены (xStart и y ограничены)
+            if (zBuffer == null || zBuffer.testAndSetUnsafe(xStart, y, leftZ)) {
                 writer.setColor(xStart, y, pixelColor);
             }
             return;
@@ -551,7 +552,8 @@ public class TriangleRasterizer {
                     continue;
                 }
                 
-                if (zBuffer.testAndSet(x, y, z)) {
+                // Используем unsafe версию, так как координаты уже проверены (xStart-xEnd и y ограничены)
+                if (zBuffer.testAndSetUnsafe(x, y, z)) {
                     Color pixelColor;
                     
                     if (texture != null) {
@@ -649,7 +651,8 @@ public class TriangleRasterizer {
                     continue;
                 }
                 
-                if (zBuffer.testAndSet(x, y, z)) {
+                // Используем unsafe версию, так как координаты уже проверены (xStart-xEnd и y ограничены)
+                if (zBuffer.testAndSetUnsafe(x, y, z)) {
                     Color pixelColor;
                     
                     if (texture != null) {
@@ -946,7 +949,8 @@ public class TriangleRasterizer {
                     writer.setColor(x0, y0, pixelColor);
                 } else {
                     if (!Float.isNaN(z0) && !Float.isInfinite(z0)) {
-                        if (zBuffer.testAndSet(x0, y0, z0)) {
+                        // Используем unsafe версию, так как координаты уже проверены
+                        if (zBuffer.testAndSetUnsafe(x0, y0, z0)) {
                             writer.setColor(x0, y0, pixelColor);
                         }
                     }
@@ -994,7 +998,8 @@ public class TriangleRasterizer {
                     }
                     
                     if (!Float.isNaN(z) && !Float.isInfinite(z)) {
-                        if (zBuffer.testAndSet(x, y, z)) {
+                        // Используем unsafe версию, так как координаты уже проверены в условии if выше
+                        if (zBuffer.testAndSetUnsafe(x, y, z)) {
                             writer.setColor(x, y, pixelColor);
                         }
                     }
