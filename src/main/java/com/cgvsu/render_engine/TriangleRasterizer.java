@@ -569,7 +569,6 @@ public class TriangleRasterizer {
                     continue;
                 }
                 
- (xStart-xEnd и y ограничены)
                 if (zBuffer.testAndSetUnsafe(x, y, z)) {
                     Color pixelColor;
                     
@@ -675,7 +674,6 @@ public class TriangleRasterizer {
                     continue;
                 }
                 
- (xStart-xEnd и y ограничены)
                 if (zBuffer.testAndSetUnsafe(x, y, z)) {
                     Color pixelColor;
                     
@@ -1031,7 +1029,6 @@ public class TriangleRasterizer {
                     }
                     
                     if (!Float.isNaN(z) && !Float.isInfinite(z)) {
- в условии if выше
                         if (zBuffer.testAndSetUnsafe(x, y, z)) {
                             writer.setColor(x, y, pixelColor);
                         }
