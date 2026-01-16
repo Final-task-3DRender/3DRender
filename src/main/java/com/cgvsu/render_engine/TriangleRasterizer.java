@@ -358,10 +358,18 @@ public class TriangleRasterizer {
                     double beta = ((y2 - y0) * px_x2 + (x0 - x2) * py_y2) * invArea;
                     double gamma = 1.0 - alpha - beta;
                     
-                    double zOverW = alpha * z0 * invW0 + beta * z1 * invW1 + gamma * z2 * invW2;
-                    double oneOverW = alpha * invW0 + beta * invW1 + gamma * invW2;
-                    if (Math.abs(oneOverW) > ONE_OVER_W_EPSILON) {
-                        leftZVal = (float) (zOverW / oneOverW);
+                    // Perspective-correct interpolation для Z
+                    // z0, z1, z2 уже в NDC пространстве, нужно восстановить clip space Z
+                    double w0 = (Math.abs(invW0) > ONE_OVER_W_EPSILON) ? 1.0 / invW0 : 1.0;
+                    double w1 = (Math.abs(invW1) > ONE_OVER_W_EPSILON) ? 1.0 / invW1 : 1.0;
+                    double w2 = (Math.abs(invW2) > ONE_OVER_W_EPSILON) ? 1.0 / invW2 : 1.0;
+                    double zClip0 = z0 * w0;
+                    double zClip1 = z1 * w1;
+                    double zClip2 = z2 * w2;
+                    double zClipInterp = alpha * zClip0 + beta * zClip1 + gamma * zClip2;
+                    double wInterp = alpha * w0 + beta * w1 + gamma * w2;
+                    if (Math.abs(wInterp) > ONE_OVER_W_EPSILON) {
+                        leftZVal = (float) (zClipInterp / wInterp);
                     } else {
                         leftZVal = (float) (alpha * z0 + beta * z1 + gamma * z2);
                     }
@@ -379,10 +387,18 @@ public class TriangleRasterizer {
                     double beta = ((y2 - y0) * px_x2 + (x0 - x2) * py_y2) * invArea;
                     double gamma = 1.0 - alpha - beta;
                     
-                    double zOverW = alpha * z0 * invW0 + beta * z1 * invW1 + gamma * z2 * invW2;
-                    double oneOverW = alpha * invW0 + beta * invW1 + gamma * invW2;
-                    if (Math.abs(oneOverW) > ONE_OVER_W_EPSILON) {
-                        rightZVal = (float) (zOverW / oneOverW);
+                    // Perspective-correct interpolation для Z
+                    // z0, z1, z2 уже в NDC пространстве, нужно восстановить clip space Z
+                    double w0 = (Math.abs(invW0) > ONE_OVER_W_EPSILON) ? 1.0 / invW0 : 1.0;
+                    double w1 = (Math.abs(invW1) > ONE_OVER_W_EPSILON) ? 1.0 / invW1 : 1.0;
+                    double w2 = (Math.abs(invW2) > ONE_OVER_W_EPSILON) ? 1.0 / invW2 : 1.0;
+                    double zClip0 = z0 * w0;
+                    double zClip1 = z1 * w1;
+                    double zClip2 = z2 * w2;
+                    double zClipInterp = alpha * zClip0 + beta * zClip1 + gamma * zClip2;
+                    double wInterp = alpha * w0 + beta * w1 + gamma * w2;
+                    if (Math.abs(wInterp) > ONE_OVER_W_EPSILON) {
+                        rightZVal = (float) (zClipInterp / wInterp);
                     } else {
                         rightZVal = (float) (alpha * z0 + beta * z1 + gamma * z2);
                     }
@@ -544,14 +560,24 @@ public class TriangleRasterizer {
         } else {
             for (int x = xStart; x <= xEnd; x++) {
                 double t = (double) (x - xStart) / span;
-                // Perspective-correct interpolation для Z
-                double zOverW = leftZ * leftInvW * (1.0 - t) + rightZ * rightInvW * t;
-                double oneOverW = leftInvW * (1.0 - t) + rightInvW * t;
+                // leftZ и rightZ уже вычислены с perspective-correct интерполяцией в rasterizeEdge
+                // и находятся в NDC пространстве. Для интерполяции между ними по X также нужна
+                // perspective-correct интерполяция, так как в экранном пространстве интерполяция нелинейна.
+                double wLeft = (Math.abs(leftInvW) > 1e-10) ? 1.0 / leftInvW : 1.0;
+                double wRight = (Math.abs(rightInvW) > 1e-10) ? 1.0 / rightInvW : 1.0;
+                // Восстанавливаем clip space Z для правильной интерполяции
+                double zClipLeft = leftZ * wLeft;
+                double zClipRight = rightZ * wRight;
+                
+                // Интерполируем в clip space
+                double zClipInterp = zClipLeft * (1.0 - t) + zClipRight * t;
+                double wInterp = wLeft * (1.0 - t) + wRight * t;
                 float z;
-                if (Math.abs(oneOverW) > 1e-10) {
-                    z = (float) (zOverW / oneOverW);
+                if (Math.abs(wInterp) > 1e-10) {
+                    // Возвращаемся в NDC пространство
+                    z = (float) (zClipInterp / wInterp);
                 } else {
-                    // Fallback to linear interpolation if invW is too small
+                    // Fallback to linear interpolation in NDC space if w is too small
                     z = (float) (leftZ * (1.0 - t) + rightZ * t);
                 }
                 
@@ -645,11 +671,20 @@ public class TriangleRasterizer {
                 double beta = (y2_y0 * px_x2 + x0_x2 * py_y2) * invArea;
                 double gamma = 1.0 - alpha - beta;
 
-                double zOverW = alpha * z0 * invW0 + beta * z1 * invW1 + gamma * z2 * invW2;
-                double oneOverW = alpha * invW0 + beta * invW1 + gamma * invW2;
+                // Perspective-correct interpolation для Z
+                // z0, z1, z2 уже в NDC пространстве, нужно восстановить clip space Z
+                double w0 = (Math.abs(invW0) > 1e-10) ? 1.0 / invW0 : 1.0;
+                double w1 = (Math.abs(invW1) > 1e-10) ? 1.0 / invW1 : 1.0;
+                double w2 = (Math.abs(invW2) > 1e-10) ? 1.0 / invW2 : 1.0;
+                double zClip0 = z0 * w0;
+                double zClip1 = z1 * w1;
+                double zClip2 = z2 * w2;
+                double zClipInterp = alpha * zClip0 + beta * zClip1 + gamma * zClip2;
+                double wInterp = alpha * w0 + beta * w1 + gamma * w2;
+                double oneOverW = (Math.abs(wInterp) > 1e-10) ? 1.0 / wInterp : 0.0;
                 float z;
-                if (Math.abs(oneOverW) > 1e-10) {
-                    z = (float) (zOverW / oneOverW);
+                if (Math.abs(wInterp) > 1e-10) {
+                    z = (float) (zClipInterp / wInterp);
                 } else {
                     z = (float) (alpha * z0 + beta * z1 + gamma * z2);
                 }
@@ -750,10 +785,16 @@ public class TriangleRasterizer {
                     Color c = interpolateColor(c0, c1, t);
                     float z = 0.0f;
                     if (useZ) {
-                        double zOverW = z0 * invW0 * (1.0 - t) + z1 * invW1 * t;
-                        double oneOverW = invW0 * (1.0 - t) + invW1 * t;
-                        if (Math.abs(oneOverW) > ONE_OVER_W_EPSILON) {
-                            z = (float) (zOverW / oneOverW);
+                        // Perspective-correct interpolation для Z
+                        // z0, z1 уже в NDC пространстве, нужно восстановить clip space Z
+                        double w0 = (Math.abs(invW0) > ONE_OVER_W_EPSILON) ? 1.0 / invW0 : 1.0;
+                        double w1 = (Math.abs(invW1) > ONE_OVER_W_EPSILON) ? 1.0 / invW1 : 1.0;
+                        double zClip0 = z0 * w0;
+                        double zClip1 = z1 * w1;
+                        double zClipInterp = zClip0 * (1.0 - t) + zClip1 * t;
+                        double wInterp = w0 * (1.0 - t) + w1 * t;
+                        if (Math.abs(wInterp) > ONE_OVER_W_EPSILON) {
+                            z = (float) (zClipInterp / wInterp);
                         } else {
                             z = (float) (z0 * (1.0 - t) + z1 * t);
                         }
@@ -829,6 +870,7 @@ public class TriangleRasterizer {
             leftX[idx] = x;
             leftColor[idx] = c;
             if (leftZ != null) {
+                // В нашей системе координат: большее Z = ближе к камере. Берем максимальное Z.
                 leftZ[idx] = (leftZ[idx] == Float.NEGATIVE_INFINITY) ? z : Math.max(leftZ[idx], z);
             }
             if (leftU != null && leftV != null && leftInvW != null) {
@@ -837,6 +879,7 @@ public class TriangleRasterizer {
                     leftV[idx] = v;
                     leftInvW[idx] = invW;
                 } else {
+                    // Обновляем UV только если новая точка ближе (z > leftZ[idx])
                     if (leftZ != null && z > leftZ[idx]) {
                         leftU[idx] = u;
                         leftV[idx] = v;
@@ -849,6 +892,7 @@ public class TriangleRasterizer {
             rightX[idx] = x;
             rightColor[idx] = c;
             if (rightZ != null) {
+                // В нашей системе координат: большее Z = ближе к камере. Берем максимальное Z.
                 rightZ[idx] = (rightZ[idx] == Float.NEGATIVE_INFINITY) ? z : Math.max(rightZ[idx], z);
             }
             if (rightU != null && rightV != null && rightInvW != null) {
@@ -857,6 +901,7 @@ public class TriangleRasterizer {
                     rightV[idx] = v;
                     rightInvW[idx] = invW;
                 } else {
+                    // Обновляем UV только если новая точка ближе (z > rightZ[idx])
                     if (rightZ != null && z > rightZ[idx]) {
                         rightU[idx] = u;
                         rightV[idx] = v;
@@ -995,11 +1040,17 @@ public class TriangleRasterizer {
                 if (zBuffer == null) {
                     writer.setColor(x, y, pixelColor);
                 } else {
-                    double zOverW = z0 * invW0 * (1.0 - t) + z1 * invW1 * t;
-                    double oneOverW = invW0 * (1.0 - t) + invW1 * t;
+                    // Perspective-correct interpolation для Z
+                    // z0, z1 уже в NDC пространстве, нужно восстановить clip space Z
+                    double w0 = (Math.abs(invW0) > ONE_OVER_W_EPSILON) ? 1.0 / invW0 : 1.0;
+                    double w1 = (Math.abs(invW1) > ONE_OVER_W_EPSILON) ? 1.0 / invW1 : 1.0;
+                    double zClip0 = z0 * w0;
+                    double zClip1 = z1 * w1;
+                    double zClipInterp = zClip0 * (1.0 - t) + zClip1 * t;
+                    double wInterp = w0 * (1.0 - t) + w1 * t;
                     float z;
-                    if (Math.abs(oneOverW) > ONE_OVER_W_EPSILON) {
-                        z = (float) (zOverW / oneOverW);
+                    if (Math.abs(wInterp) > ONE_OVER_W_EPSILON) {
+                        z = (float) (zClipInterp / wInterp);
                     } else {
                         z = (float) (z0 * (1.0 - t) + z1 * t);
                     }

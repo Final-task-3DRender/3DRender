@@ -6,7 +6,7 @@ import com.cgvsu.model.ModelTransformer;
 import com.cgvsu.objreader.ObjReader;
 import com.cgvsu.objwriter.ObjWriter;
 import com.cgvsu.render_engine.NormalCalculator;
-import com.cgvsu.triangulation.SimpleTriangulator;
+import com.cgvsu.triangulation.EarCuttingTriangulator;
 import com.cgvsu.triangulation.Triangulator;
 import com.cgvsu.transform.ModelMatrixBuilder;
 import com.cgvsu.math.Matrix4f;
@@ -45,16 +45,17 @@ public class FileOperationsHandler {
      * <p>Выполняет:
      * <ol>
      *   <li>Чтение и парсинг OBJ файла</li>
-     *   <li>Триангуляцию модели (разбиение полигонов на треугольники)</li>
+     *   <li>Триангуляцию модели (разбиение полигонов на треугольники), если включена</li>
      *   <li>Пересчет нормалей для правильного отображения</li>
      * </ol>
      * 
      * @param file файл OBJ для загрузки
+     * @param enableTriangulation если true, выполняется триангуляция модели
      * @return загруженная и обработанная модель
      * @throws IOException если произошла ошибка при чтении файла
      * @throws com.cgvsu.objreader.ObjReaderException если файл содержит ошибки формата
      */
-    public static Model loadModel(File file) throws IOException {
+    public static Model loadModel(File file, boolean enableTriangulation) throws IOException {
         if (file == null || !file.exists()) {
             throw new IOException("File does not exist: " + (file != null ? file.getAbsolutePath() : "null"));
         }
@@ -64,12 +65,24 @@ public class FileOperationsHandler {
         
         Model mesh = ObjReader.read(fileContent);
         
-        Triangulator triangulator = new SimpleTriangulator();
-        triangulator.triangulateModel(mesh);
+        // НЕ триангулируем при загрузке - триангуляция выполняется динамически в RenderEngine
+        // Это позволяет включать/выключать триангуляцию без перезагрузки модели
         
         NormalCalculator.recalculateNormals(mesh);
         
         return mesh;
+    }
+    
+    /**
+     * Загружает модель из OBJ файла с триангуляцией по умолчанию (включена).
+     * 
+     * @param file файл OBJ для загрузки
+     * @return загруженная и обработанная модель
+     * @throws IOException если произошла ошибка при чтении файла
+     * @throws com.cgvsu.objreader.ObjReaderException если файл содержит ошибки формата
+     */
+    public static Model loadModel(File file) throws IOException {
+        return loadModel(file, true);
     }
     
     /**

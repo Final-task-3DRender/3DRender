@@ -43,8 +43,6 @@ import com.cgvsu.camera.OrbitCameraController;
 import com.cgvsu.model.ModelTransformer;
 import com.cgvsu.transform.ModelMatrixBuilder;
 import com.cgvsu.math.Matrix4f;
-import com.cgvsu.triangulation.SimpleTriangulator;
-import com.cgvsu.triangulation.Triangulator;
 import com.cgvsu.render_engine.NormalCalculator;
 import java.util.Optional;
 import javafx.scene.control.TextField;
@@ -181,6 +179,12 @@ public class GuiController {
 
     @FXML
     private Button loadTextureButton;
+    
+    @FXML
+    private CheckBox enableTriangulationCheckBox;
+    
+    @FXML
+    private CheckBox enableRasterizationCheckBox;
 
     @FXML
     private Label textureNameLabel;
@@ -468,7 +472,8 @@ public class GuiController {
         }
 
         try {
-            Model mesh = FileOperationsHandler.loadModel(file);
+            // Триангуляция выполняется динамически в RenderEngine, не при загрузке
+            Model mesh = FileOperationsHandler.loadModel(file, false);
 
             SceneModel sceneModel = new SceneModel(mesh, file.getName());
             sceneModels.add(sceneModel);
@@ -571,6 +576,22 @@ public class GuiController {
 
         if (textureNameLabel != null) {
             updateTextureLabel();
+        }
+        
+        if (enableTriangulationCheckBox != null) {
+            enableTriangulationCheckBox.setSelected(renderSettings.isEnableTriangulation());
+            enableTriangulationCheckBox.setOnAction(e -> {
+                renderSettings.setEnableTriangulation(enableTriangulationCheckBox.isSelected());
+                // Настройка триангуляции применяется динамически в RenderEngine
+                // Перезагрузка модели не требуется
+            });
+        }
+        
+        if (enableRasterizationCheckBox != null) {
+            enableRasterizationCheckBox.setSelected(renderSettings.isEnableRasterization());
+            enableRasterizationCheckBox.setOnAction(e -> {
+                renderSettings.setEnableRasterization(enableRasterizationCheckBox.isSelected());
+            });
         }
     }
 

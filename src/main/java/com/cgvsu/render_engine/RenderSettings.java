@@ -61,6 +61,18 @@ public class RenderSettings {
      * Может быть null, если текстура не загружена.
      */
     private Texture texture = null;
+    
+    /**
+     * Включена ли триангуляция полигонов.
+     * По умолчанию включена.
+     */
+    private boolean enableTriangulation = true;
+    
+    /**
+     * Включена ли растеризация (заливка треугольников).
+     * По умолчанию включена.
+     */
+    private boolean enableRasterization = true;
 
     /**
      * Создает настройки рендеринга со значениями по умолчанию.
@@ -231,5 +243,47 @@ public class RenderSettings {
      */
     public void setTexture(Texture texture) {
         this.texture = texture;
+    }
+    
+    /**
+     * Проверяет, включена ли триангуляция полигонов.
+     * 
+     * @return true если триангуляция включена
+     */
+    public boolean isEnableTriangulation() {
+        return enableTriangulation;
+    }
+    
+    /**
+     * Включает или выключает триангуляцию полигонов.
+     * 
+     * <p>Триангуляция разбивает полигоны с более чем 3 вершинами на треугольники.
+     * Рекомендуется оставлять включенной для правильной отрисовки.
+     * 
+     * @param enableTriangulation true для включения триангуляции
+     */
+    public void setEnableTriangulation(boolean enableTriangulation) {
+        this.enableTriangulation = enableTriangulation;
+    }
+    
+    /**
+     * Проверяет, включена ли растеризация (заливка треугольников).
+     * 
+     * @return true если растеризация включена
+     */
+    public boolean isEnableRasterization() {
+        return enableRasterization;
+    }
+    
+    /**
+     * Включает или выключает растеризацию (заливку треугольников).
+     * 
+     * <p>Растеризация отвечает за заливку треугольников пикселями.
+     * Если выключена, будут отображаться только wireframe линии (если включены).
+     * 
+     * @param enableRasterization true для включения растеризации
+     */
+    public void setEnableRasterization(boolean enableRasterization) {
+        this.enableRasterization = enableRasterization;
     }
 }

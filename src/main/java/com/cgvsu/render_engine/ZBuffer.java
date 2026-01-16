@@ -11,7 +11,7 @@ public class ZBuffer {
     private final int width;
     private final int height;
     
-    private static final float UNINITIALIZED = -1e10f;
+    private static final float UNINITIALIZED = Float.NEGATIVE_INFINITY;
     
     /**
      * Создает новый Z-buffer заданного размера.
@@ -42,8 +42,9 @@ public class ZBuffer {
      * 3. Иначе -> не рисуем
      * 
      * ВАЖНО: В нашей системе координат после перспективной проекции:
-     * - Ближние объекты имеют БОЛЬШИЕ значения Z (менее отрицательные или положительные)
-     * - Дальние объекты имеют МЕНЬШИЕ значения Z (более отрицательные)
+     * - Z находится в диапазоне [-1, 1] после перспективного деления (NDC)
+     * - Ближние объекты имеют БОЛЬШИЕ значения Z (положительные, ближе к 1)
+     * - Дальние объекты имеют МЕНЬШИЕ значения Z (отрицательные, ближе к -1)
      * Поэтому используем сравнение z > currentZ для определения ближайшего пикселя.
      * 
      * @param x координата X пикселя
@@ -63,12 +64,15 @@ public class ZBuffer {
         int index = y * width + x;
         float currentZ = buffer[index];
         
-        if (currentZ == UNINITIALIZED) {
+        if (currentZ == UNINITIALIZED || Float.isInfinite(currentZ) || Float.isNaN(currentZ)) {
             buffer[index] = z;
             return true;
         }
         
-        if (z > currentZ) {
+        // В нашей системе координат: большее Z = ближе к камере
+        // Добавляем небольшой epsilon для учета погрешностей вычислений
+        final float EPSILON = 1e-6f;
+        if (z > currentZ + EPSILON) {
             buffer[index] = z;
             return true;
         }
@@ -93,12 +97,15 @@ public class ZBuffer {
         int index = y * width + x;
         float currentZ = buffer[index];
         
-        if (currentZ == UNINITIALIZED) {
+        if (currentZ == UNINITIALIZED || Float.isInfinite(currentZ) || Float.isNaN(currentZ)) {
             buffer[index] = z;
             return true;
         }
         
-        if (z > currentZ) {
+        // В нашей системе координат: большее Z = ближе к камере
+        // Добавляем небольшой epsilon для учета погрешностей вычислений
+        final float EPSILON = 1e-6f;
+        if (z > currentZ + EPSILON) {
             buffer[index] = z;
             return true;
         }
