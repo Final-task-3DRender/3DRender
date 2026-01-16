@@ -482,7 +482,7 @@ public class GuiController {
 
         try {
             // Триангуляция выполняется динамически в RenderEngine, не при загрузке
-            Model mesh = FileOperationsHandler.loadModel(file, false);
+            Model mesh = FileOperationsHandler.loadModel(file);
 
             SceneModel sceneModel = new SceneModel(mesh, file.getName());
             sceneModels.add(sceneModel);

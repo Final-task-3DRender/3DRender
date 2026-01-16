@@ -23,22 +23,31 @@ import static com.cgvsu.render_engine.GraphicConveyor.vertexToPoint;
 /**
  * Основной класс рендер-движка для отрисовки 3D моделей.
  * 
- * <p>Реализует полный графический конвейер:
+ * <p>Реализует полный графический конвейер согласно теории из методички:
  * <ol>
- *   <li>Преобразование из локальных координат в мировые (Model Matrix)</li>
- *   <li>Преобразование из мировых координат в координаты камеры (View Matrix)</li>
- *   <li>Перспективная проекция (Projection Matrix)</li>
- *   <li>Преобразование в экранные координаты</li>
+ *   <li>Преобразование из локальных координат в мировые (Model Matrix) - аффинные преобразования</li>
+ *   <li>Преобразование из мировых координат в координаты камеры (View Matrix) - LookAt алгоритм</li>
+ *   <li>Перспективная проекция (Projection Matrix) - перспективное преобразование</li>
+ *   <li>Преобразование в экранные координаты - NDC к экранным координатам</li>
  *   <li>Растеризация треугольников с поддержкой Z-buffer и текстур</li>
  * </ol>
  * 
- * <p>Поддерживает:
+ * <p>Поддерживает режимы отрисовки (задание для третьего человека):
  * <ul>
- *   <li>Z-buffer для правильной отрисовки глубины</li>
- *   <li>Backface culling для оптимизации</li>
- *   <li>Текстуры с perspective-correct interpolation</li>
- *   <li>Wireframe и filled режимы отрисовки</li>
- *   <li>Оптимизацию для больших моделей (пропуск полигонов)</li>
+ *   <li>Растеризация полигонов одним цветом с Z-buffer</li>
+ *   <li>Наложение текстуры (текстура загружается через меню)</li>
+ *   <li>Wireframe режим (рисование полигональной сетки)</li>
+ *   <li>Filled режим (заливка треугольников)</li>
+ * </ul>
+ * 
+ * <p>Технические особенности:
+ * <ul>
+ *   <li>Z-buffer для правильной отрисовки глубины (задние полигоны не вылазят на передние)</li>
+ *   <li>Backface culling для оптимизации (опционально)</li>
+ *   <li>Текстуры с perspective-correct interpolation (перспективно-корректная интерполяция UV)</li>
+ *   <li>Динамическая триангуляция полигонов (Ear-Cutting Triangulator)</li>
+ *   <li>Пересчет нормалей при загрузке модели (всегда, даже если есть в файле)</li>
+ *   <li>Оптимизация для больших моделей (пропуск полигонов при большом количестве)</li>
  * </ul>
  * 
  * <p>Использует векторы-столбцы. Порядок умножения матриц: P * V * M.
@@ -283,6 +292,8 @@ public class RenderEngine {
         // modelViewProjectionMatrix гарантированно инициализирована здесь
         assert modelViewProjectionMatrix != null;
 
+        // Задание для третьего человека: "Режимы отрисовки"
+        // Статический цвет для заливки (используется, если текстура не включена)
         Color triangleColor = settings.getFillColor();
         Color wireframeColor = settings.getWireframeColor();
 
@@ -394,8 +405,10 @@ public class RenderEngine {
                 }
             }
 
+            // Задание для третьего человека: "Растеризация полигонов"
             // Если полигон имеет больше 3 вершин, триангулируем его динамически
-            if (nVerticesInPolygon > 3) {
+            // Триангуляция выполняется во время рендеринга, а не при загрузке модели
+            if (nVerticesInPolygon > 3 && settings.isEnableTriangulation()) {
                 Triangulator triangulator = new EarCuttingTriangulator();
                 java.util.List<Polygon> triangles = triangulator.triangulatePolygon(mesh, polygon);
                 
@@ -419,158 +432,68 @@ public class RenderEngine {
                     }
                     
                     // Получаем UV координаты для треугольника
-                    float u0 = 0.0f, v0 = 0.0f, u1 = 0.0f, v1 = 0.0f, u2 = 0.0f, v2 = 0.0f;
-                    Texture texture = settings.isUseTexture() ? settings.getTexture() : null;
-                    if (texture != null) {
-                        ArrayList<Integer> triTextureIndices = triangle.getTextureVertexIndices();
-                        if (triTextureIndices != null && triTextureIndices.size() >= 3) {
-                            if (triTextureIndices.get(0) >= 0 && triTextureIndices.get(0) < mesh.getTextureVertexCount()) {
-                                Vector2f tex0 = mesh.getTextureVertex(triTextureIndices.get(0));
-                                u0 = tex0.x;
-                                v0 = tex0.y;
-                            }
-                            if (triTextureIndices.get(1) >= 0 && triTextureIndices.get(1) < mesh.getTextureVertexCount()) {
-                                Vector2f tex1 = mesh.getTextureVertex(triTextureIndices.get(1));
-                                u1 = tex1.x;
-                                v1 = tex1.y;
-                            }
-                            if (triTextureIndices.get(2) >= 0 && triTextureIndices.get(2) < mesh.getTextureVertexCount()) {
-                                Vector2f tex2 = mesh.getTextureVertex(triTextureIndices.get(2));
-                                u2 = tex2.x;
-                                v2 = tex2.y;
-                            }
-                        }
-                    }
+                    ArrayList<Integer> triTextureIndices = triangle.getTextureVertexIndices();
+                    int[] triUVIndices = {0, 1, 2};
+                    float[] uv = getUVCoordinates(mesh, triangle, triTextureIndices, triUVIndices);
+                    
+                    // Создаем списки точек, Z и invW для треугольника
+                    ArrayList<Point2f> triPoints = new ArrayList<>();
+                    ArrayList<Float> triZ = new ArrayList<>();
+                    ArrayList<Float> triInvW = new ArrayList<>();
+                    triPoints.add(resultPoints.get(idx0));
+                    triPoints.add(resultPoints.get(idx1));
+                    triPoints.add(resultPoints.get(idx2));
+                    triZ.add(resultZ.get(idx0));
+                    triZ.add(resultZ.get(idx1));
+                    triZ.add(resultZ.get(idx2));
+                    triInvW.add(resultInvW.get(idx0));
+                    triInvW.add(resultInvW.get(idx1));
+                    triInvW.add(resultInvW.get(idx2));
                     
                     // Рендерим треугольник
-                    if (settings.isShowFilled()) {
-                        TriangleRasterizer.fillTriangle(
-                            graphicsContext,
-                            zBuffer,
-                            texture,
-                            resultPoints.get(idx0).x, resultPoints.get(idx0).y, resultZ.get(idx0), resultInvW.get(idx0), u0, v0, triangleColor,
-                            resultPoints.get(idx1).x, resultPoints.get(idx1).y, resultZ.get(idx1), resultInvW.get(idx1), u1, v1, triangleColor,
-                            resultPoints.get(idx2).x, resultPoints.get(idx2).y, resultZ.get(idx2), resultInvW.get(idx2), u2, v2, triangleColor
-                        );
-                    }
-                    
-                    if (settings.isShowWireframe()) {
-                        graphicsContext.setStroke(wireframeColor);
-                        graphicsContext.strokeLine(
-                            resultPoints.get(idx0).x, resultPoints.get(idx0).y,
-                            resultPoints.get(idx1).x, resultPoints.get(idx1).y
-                        );
-                        graphicsContext.strokeLine(
-                            resultPoints.get(idx1).x, resultPoints.get(idx1).y,
-                            resultPoints.get(idx2).x, resultPoints.get(idx2).y
-                        );
-                        graphicsContext.strokeLine(
-                            resultPoints.get(idx2).x, resultPoints.get(idx2).y,
-                            resultPoints.get(idx0).x, resultPoints.get(idx0).y
-                        );
-                    }
+                    renderTriangle(graphicsContext, zBuffer, settings, triPoints, triZ, triInvW, uv, triangleColor, wireframeColor);
                 }
                 continue; // Пропускаем дальнейшую обработку полигона, так как уже обработали треугольники
             }
             
             if (nVerticesInPolygon == 3) {
-                float u0 = 0.0f, v0 = 0.0f, u1 = 0.0f, v1 = 0.0f, u2 = 0.0f, v2 = 0.0f;
-                Texture texture = settings.isUseTexture() ? settings.getTexture() : null;
-                if (texture != null) {
-                    ArrayList<Integer> textureIndices = polygon.getTextureVertexIndices();
-                    if (textureIndices != null && textureIndices.size() >= 3) {
-                        if (textureIndices.get(0) >= 0 && textureIndices.get(0) < mesh.getTextureVertexCount()) {
-                            Vector2f tex0 = mesh.getTextureVertex(textureIndices.get(0));
-                            u0 = tex0.x;
-                            v0 = tex0.y;
-                        }
-                        if (textureIndices.get(1) >= 0 && textureIndices.get(1) < mesh.getTextureVertexCount()) {
-                            Vector2f tex1 = mesh.getTextureVertex(textureIndices.get(1));
-                            u1 = tex1.x;
-                            v1 = tex1.y;
-                        }
-                        if (textureIndices.get(2) >= 0 && textureIndices.get(2) < mesh.getTextureVertexCount()) {
-                            Vector2f tex2 = mesh.getTextureVertex(textureIndices.get(2));
-                            u2 = tex2.x;
-                            v2 = tex2.y;
-                        }
-                    }
-                }
+                // Треугольник - рендерим напрямую (задание для третьего человека: "Растеризация полигонов")
+                ArrayList<Integer> textureIndices = polygon.getTextureVertexIndices();
+                int[] vertexIndices = {0, 1, 2};
+                float[] uv = getUVCoordinates(mesh, polygon, textureIndices, vertexIndices);
                 
-                if (settings.isShowFilled()) {
-                    TriangleRasterizer.fillTriangle(
-                        graphicsContext,
-                        zBuffer,
-                        texture,
-                        resultPoints.get(0).x, resultPoints.get(0).y, resultZ.get(0), resultInvW.get(0), u0, v0, triangleColor,
-                        resultPoints.get(1).x, resultPoints.get(1).y, resultZ.get(1), resultInvW.get(1), u1, v1, triangleColor,
-                        resultPoints.get(2).x, resultPoints.get(2).y, resultZ.get(2), resultInvW.get(2), u2, v2, triangleColor
-                    );
-                }
-                
-                if (settings.isShowWireframe()) {
-                    graphicsContext.setStroke(wireframeColor);
-                    graphicsContext.strokeLine(
-                        resultPoints.get(0).x, resultPoints.get(0).y,
-                        resultPoints.get(1).x, resultPoints.get(1).y
-                    );
-                    graphicsContext.strokeLine(
-                        resultPoints.get(1).x, resultPoints.get(1).y,
-                        resultPoints.get(2).x, resultPoints.get(2).y
-                    );
-                    graphicsContext.strokeLine(
-                        resultPoints.get(2).x, resultPoints.get(2).y,
-                        resultPoints.get(0).x, resultPoints.get(0).y
-                    );
-                }
+                renderTriangle(graphicsContext, zBuffer, settings, resultPoints, resultZ, resultInvW, uv, triangleColor, wireframeColor);
             } else {
-                if (settings.isShowFilled()) {
-                    Texture texture = settings.isUseTexture() ? settings.getTexture() : null;
-                    ArrayList<Integer> textureIndices = polygon.getTextureVertexIndices();
+                // Полигон с >3 вершинами - используем fan triangulation (без динамической триангуляции)
+                // Это fallback для случая, когда триангуляция отключена в настройках
+                // Задание для третьего человека: "Растеризация полигонов" - заполнение полигонов одним цветом
+                ArrayList<Integer> textureIndices = polygon.getTextureVertexIndices();
+                
+                // Fan triangulation: разбиваем на треугольники от первой вершины
+                for (int vertexInPolygonInd = 1; vertexInPolygonInd < nVerticesInPolygon - 1; ++vertexInPolygonInd) {
+                    int[] triVertexIndices = {0, vertexInPolygonInd, vertexInPolygonInd + 1};
+                    float[] uv = getUVCoordinates(mesh, polygon, textureIndices, triVertexIndices);
                     
-                    for (int vertexInPolygonInd = 1; vertexInPolygonInd < nVerticesInPolygon - 1; ++vertexInPolygonInd) {
-                        float u0 = 0.0f, v0 = 0.0f, u1 = 0.0f, v1 = 0.0f, u2 = 0.0f, v2 = 0.0f;
-                        if (texture != null && textureIndices != null && textureIndices.size() >= vertexInPolygonInd + 2) {
-                            if (textureIndices.get(0) >= 0 && textureIndices.get(0) < mesh.getTextureVertexCount()) {
-                                Vector2f tex0 = mesh.getTextureVertex(textureIndices.get(0));
-                                u0 = tex0.x;
-                                v0 = tex0.y;
-                            }
-                            if (textureIndices.get(vertexInPolygonInd) >= 0 && textureIndices.get(vertexInPolygonInd) < mesh.getTextureVertexCount()) {
-                                Vector2f tex1 = mesh.getTextureVertex(textureIndices.get(vertexInPolygonInd));
-                                u1 = tex1.x;
-                                v1 = tex1.y;
-                            }
-                            if (textureIndices.get(vertexInPolygonInd + 1) >= 0 && textureIndices.get(vertexInPolygonInd + 1) < mesh.getTextureVertexCount()) {
-                                Vector2f tex2 = mesh.getTextureVertex(textureIndices.get(vertexInPolygonInd + 1));
-                                u2 = tex2.x;
-                                v2 = tex2.y;
-                            }
-                        }
-                        
-                        TriangleRasterizer.fillTriangle(
-                            graphicsContext,
-                            zBuffer,
-                            texture,
-                            resultPoints.get(0).x, resultPoints.get(0).y, resultZ.get(0), resultInvW.get(0), u0, v0, triangleColor,
-                            resultPoints.get(vertexInPolygonInd).x, resultPoints.get(vertexInPolygonInd).y, resultZ.get(vertexInPolygonInd), resultInvW.get(vertexInPolygonInd), u1, v1, triangleColor,
-                            resultPoints.get(vertexInPolygonInd + 1).x, resultPoints.get(vertexInPolygonInd + 1).y, resultZ.get(vertexInPolygonInd + 1), resultInvW.get(vertexInPolygonInd + 1), u2, v2, triangleColor
-                        );
-                    }
+                    // Создаем списки для треугольника
+                    ArrayList<Point2f> triPoints = new ArrayList<>();
+                    ArrayList<Float> triZ = new ArrayList<>();
+                    ArrayList<Float> triInvW = new ArrayList<>();
+                    triPoints.add(resultPoints.get(0));
+                    triPoints.add(resultPoints.get(vertexInPolygonInd));
+                    triPoints.add(resultPoints.get(vertexInPolygonInd + 1));
+                    triZ.add(resultZ.get(0));
+                    triZ.add(resultZ.get(vertexInPolygonInd));
+                    triZ.add(resultZ.get(vertexInPolygonInd + 1));
+                    triInvW.add(resultInvW.get(0));
+                    triInvW.add(resultInvW.get(vertexInPolygonInd));
+                    triInvW.add(resultInvW.get(vertexInPolygonInd + 1));
+                    
+                    renderTriangle(graphicsContext, zBuffer, settings, triPoints, triZ, triInvW, uv, triangleColor, wireframeColor);
                 }
                 
+                // Отрисовываем wireframe для всего полигона
                 if (settings.isShowWireframe()) {
-                    graphicsContext.setStroke(wireframeColor);
-                    for (int vertexInPolygonInd = 1; vertexInPolygonInd < nVerticesInPolygon; ++vertexInPolygonInd) {
-                        graphicsContext.strokeLine(
-                            resultPoints.get(vertexInPolygonInd - 1).x, resultPoints.get(vertexInPolygonInd - 1).y,
-                            resultPoints.get(vertexInPolygonInd).x, resultPoints.get(vertexInPolygonInd).y
-                        );
-                    }
-                    graphicsContext.strokeLine(
-                        resultPoints.get(nVerticesInPolygon - 1).x, resultPoints.get(nVerticesInPolygon - 1).y,
-                        resultPoints.get(0).x, resultPoints.get(0).y
-                    );
+                    drawWireframePolygon(graphicsContext, wireframeColor, resultPoints);
                 }
             }
         }
@@ -597,20 +520,135 @@ public class RenderEngine {
     }
 
     /**
-     * Проверяет, является ли треугольник передней гранью, используя нормаль в пространстве камеры.
-     * Использует сохраненные нормали из модели (пересчитанные NormalCalculator), что более надежно.
+     * Получает UV координаты для трех вершин из полигона.
      * 
-     * @param mesh модель
-     * @param polygonIndex индекс полигона
-     * @param modelMatrix матрица модели
-     * @param viewMatrix матрица вида
-     * @return true если треугольник front-facing (видим), false если back-facing (невидим)
+     * <p>Извлекает текстурные координаты из модели для указанных индексов вершин полигона.
+     * Если текстура не используется или координаты недоступны, возвращает нули.
+     * 
+     * @param mesh модель с текстурными координатами
+     * @param polygon полигон с индексами текстурных вершин (не используется, но оставлен для ясности)
+     * @param textureIndices индексы текстурных вершин из полигона (может быть null)
+     * @param vertexIndicesInPolygon массив из 3 индексов вершин в полигоне (например, [0, 1, 2] или [0, i, i+1])
+     * @return массив из 6 float значений: [u0, v0, u1, v1, u2, v2]
      */
+    private static float[] getUVCoordinates(
+            Model mesh, 
+            Polygon polygon, 
+            ArrayList<Integer> textureIndices,
+            int[] vertexIndicesInPolygon) {
+        float[] uv = new float[6]; // [u0, v0, u1, v1, u2, v2]
+        
+        if (textureIndices != null && textureIndices.size() > 0 && mesh.getTextureVertexCount() > 0) {
+            for (int i = 0; i < 3; i++) {
+                int vertexIdxInPolygon = vertexIndicesInPolygon[i];
+                if (vertexIdxInPolygon >= 0 && vertexIdxInPolygon < textureIndices.size()) {
+                    int texIdx = textureIndices.get(vertexIdxInPolygon);
+                    if (texIdx >= 0 && texIdx < mesh.getTextureVertexCount()) {
+                        Vector2f tex = mesh.getTextureVertex(texIdx);
+                        uv[i * 2] = tex.x;
+                        uv[i * 2 + 1] = tex.y;
+                    }
+                }
+            }
+        }
+        
+        return uv;
+    }
+    
+    /**
+     * Отрисовывает wireframe (обводку) для треугольника.
+     * 
+     * @param graphicsContext контекст для отрисовки
+     * @param wireframeColor цвет обводки
+     * @param p0, p1, p2 точки треугольника в экранных координатах
+     */
+    private static void drawWireframeTriangle(
+            GraphicsContext graphicsContext,
+            Color wireframeColor,
+            Point2f p0, Point2f p1, Point2f p2) {
+        graphicsContext.setStroke(wireframeColor);
+        graphicsContext.strokeLine(p0.x, p0.y, p1.x, p1.y);
+        graphicsContext.strokeLine(p1.x, p1.y, p2.x, p2.y);
+        graphicsContext.strokeLine(p2.x, p2.y, p0.x, p0.y);
+    }
+    
+    /**
+     * Отрисовывает wireframe (обводку) для полигона с произвольным количеством вершин.
+     * 
+     * @param graphicsContext контекст для отрисовки
+     * @param wireframeColor цвет обводки
+     * @param points точки полигона в экранных координатах
+     */
+    private static void drawWireframePolygon(
+            GraphicsContext graphicsContext,
+            Color wireframeColor,
+            ArrayList<Point2f> points) {
+        if (points.size() < 2) return;
+        
+        graphicsContext.setStroke(wireframeColor);
+        for (int i = 1; i < points.size(); i++) {
+            graphicsContext.strokeLine(
+                points.get(i - 1).x, points.get(i - 1).y,
+                points.get(i).x, points.get(i).y
+            );
+        }
+        graphicsContext.strokeLine(
+            points.get(points.size() - 1).x, points.get(points.size() - 1).y,
+            points.get(0).x, points.get(0).y
+        );
+    }
+    
+    /**
+     * Рендерит треугольник с учетом всех настроек (заливка, текстура, wireframe).
+     * 
+     * @param graphicsContext контекст для отрисовки
+     * @param zBuffer Z-buffer для проверки глубины
+     * @param settings настройки рендеринга
+     * @param resultPoints точки треугольника в экранных координатах
+     * @param resultZ значения Z для вершин
+     * @param resultInvW обратные значения w для вершин
+     * @param uv UV координаты [u0, v0, u1, v1, u2, v2]
+     * @param triangleColor цвет треугольника
+     * @param wireframeColor цвет обводки
+     */
+    private static void renderTriangle(
+            GraphicsContext graphicsContext,
+            ZBuffer zBuffer,
+            RenderSettings settings,
+            ArrayList<Point2f> resultPoints,
+            ArrayList<Float> resultZ,
+            ArrayList<Float> resultInvW,
+            float[] uv,
+            Color triangleColor,
+            Color wireframeColor) {
+        
+        Texture texture = settings.isUseTexture() ? settings.getTexture() : null;
+        
+        if (settings.isShowFilled()) {
+            TriangleRasterizer.fillTriangle(
+                graphicsContext,
+                zBuffer,
+                texture,
+                resultPoints.get(0).x, resultPoints.get(0).y, resultZ.get(0), resultInvW.get(0), 
+                uv[0], uv[1], triangleColor,
+                resultPoints.get(1).x, resultPoints.get(1).y, resultZ.get(1), resultInvW.get(1), 
+                uv[2], uv[3], triangleColor,
+                resultPoints.get(2).x, resultPoints.get(2).y, resultZ.get(2), resultInvW.get(2), 
+                uv[4], uv[5], triangleColor
+            );
+        }
+        
+        if (settings.isShowWireframe()) {
+            drawWireframeTriangle(graphicsContext, wireframeColor, 
+                resultPoints.get(0), resultPoints.get(1), resultPoints.get(2));
+        }
+    }
+    
     /**
      * Проверяет, является ли треугольник передней гранью, используя нормаль в пространстве камеры.
      * Использует сохраненные нормали из модели (пересчитанные NormalCalculator), что более надежно.
      * 
-     * Fix for backface culling to prevent transparency: Always compute normal from vertices if stored
+     * <p>Fix for backface culling to prevent transparency: Always compute normal from vertices if stored
      * normal is invalid (null or length < 1e-6f). Change fallback returns to false (skip polygon)
      * for degenerate cases instead of true to prevent rendering invalid polygons.
      * 
