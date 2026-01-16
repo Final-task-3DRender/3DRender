@@ -43,24 +43,24 @@ public class NormalCalculator {
      * @param model модель для пересчета нормалей (может быть null, в этом случае метод ничего не делает)
      */
     public static void recalculateNormals(Model model) {
-        if (model == null || model.polygons == null || model.vertices == null) {
+        if (model == null || model.getPolygonCount() == 0 || model.getVertexCount() == 0) {
             return;
         }
         
-        model.normals.clear();
+        model.clearNormals();
         
         Map<Integer, Vector3f> vertexNormals = new HashMap<>();
         
-        for (Polygon polygon : model.polygons) {
+        for (Polygon polygon : model.getPolygons()) {
             ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
             
             if (vertexIndices.size() < 3) {
                 continue;
             }
             
-            Vector3f v0 = model.vertices.get(vertexIndices.get(0));
-            Vector3f v1 = model.vertices.get(vertexIndices.get(1));
-            Vector3f v2 = model.vertices.get(vertexIndices.get(2));
+            Vector3f v0 = model.getVertex(vertexIndices.get(0));
+            Vector3f v1 = model.getVertex(vertexIndices.get(1));
+            Vector3f v2 = model.getVertex(vertexIndices.get(2));
             
             Vector3f edge1 = v1.subtract(v0);
             Vector3f edge2 = v2.subtract(v0);
@@ -73,8 +73,8 @@ public class NormalCalculator {
                 polygonNormal = new Vector3f(0, 0, 1);
             }
             
-            int normalIndex = model.normals.size();
-            model.normals.add(polygonNormal);
+            int normalIndex = model.getNormalCount();
+            model.addNormal(polygonNormal);
             
             ArrayList<Integer> normalIndices = new ArrayList<>();
             for (int i = 0; i < vertexIndices.size(); i++) {
@@ -110,7 +110,7 @@ public class NormalCalculator {
      * @return нормализованная нормаль полигона или (0, 0, 1) по умолчанию
      */
     public static Vector3f calculatePolygonNormal(Model model, Polygon polygon) {
-        if (model == null || polygon == null || model.vertices == null) {
+        if (model == null || polygon == null || model.getVertexCount() == 0) {
             return new Vector3f(0, 0, 1); // Нормаль по умолчанию
         }
         
@@ -120,9 +120,9 @@ public class NormalCalculator {
             return new Vector3f(0, 0, 1); // Нормаль по умолчанию
         }
         
-        Vector3f v0 = model.vertices.get(vertexIndices.get(0));
-        Vector3f v1 = model.vertices.get(vertexIndices.get(1));
-        Vector3f v2 = model.vertices.get(vertexIndices.get(2));
+        Vector3f v0 = model.getVertex(vertexIndices.get(0));
+        Vector3f v1 = model.getVertex(vertexIndices.get(1));
+        Vector3f v2 = model.getVertex(vertexIndices.get(2));
         
         Vector3f edge1 = v1.subtract(v0);
         Vector3f edge2 = v2.subtract(v0);

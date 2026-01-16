@@ -347,8 +347,8 @@ public class GuiController {
         }
         if (sceneModelInfoLabel != null) {
             if (current != null) {
-                int vertexCount = current.getModel().vertices.size();
-                int polygonCount = current.getModel().polygons.size();
+                int vertexCount = current.getModel().getVertexCount();
+                int polygonCount = current.getModel().getPolygonCount();
                 sceneModelInfoLabel.setText(String.format("Model: %s\nVertices: %d\nPolygons: %d",
                         current.getName(), vertexCount, polygonCount));
             } else {
@@ -432,8 +432,8 @@ public class GuiController {
 
         SceneModel current = getSelectedSceneModel();
         if (current != null) {
-            int vertexCount = current.getModel().vertices.size();
-            int polygonCount = current.getModel().polygons.size();
+            int vertexCount = current.getModel().getVertexCount();
+            int polygonCount = current.getModel().getPolygonCount();
             modelInfoLabel.setText(String.format("Model: %s | Vertices: %d | Polygons: %d",
                     current.getName(), vertexCount, polygonCount));
         } else {

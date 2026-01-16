@@ -47,13 +47,16 @@ public class ModelTransformer {
 
         Model result = new Model();
 
-        result.textureVertices = new ArrayList<>(source.textureVertices);
-        result.polygons = new ArrayList<>(source.polygons);
+        for (com.cgvsu.math.Vector2f tv : source.getTextureVertices()) {
+            result.addTextureVertex(tv);
+        }
+        for (Polygon p : source.getPolygons()) {
+            result.addPolygon(p);
+        }
 
-        result.vertices = new ArrayList<>(source.vertices.size());
-        for (Vector3f v : source.vertices) {
+        for (Vector3f v : source.getVertices()) {
             if (v == null) {
-                result.vertices.add(null);
+                result.addVertex(new Vector3f(0, 0, 0));
                 continue;
             }
 
@@ -70,13 +73,12 @@ public class ModelTransformer {
                 );
             }
 
-            result.vertices.add(new Vector3f(transformed.x, transformed.y, transformed.z));
+            result.addVertex(new Vector3f(transformed.x, transformed.y, transformed.z));
         }
 
-        result.normals = new ArrayList<>(source.normals.size());
-        for (Vector3f n : source.normals) {
+        for (Vector3f n : source.getNormals()) {
             if (n == null) {
-                result.normals.add(null);
+                result.addNormal(new Vector3f(0, 0, 1));
                 continue;
             }
 
@@ -84,7 +86,7 @@ public class ModelTransformer {
             Vector4f transformed = transform.multiply(n4);
 
             Vector3f dir = new Vector3f(transformed.x, transformed.y, transformed.z).normalize();
-            result.normals.add(dir);
+            result.addNormal(dir);
         }
 
         return result;

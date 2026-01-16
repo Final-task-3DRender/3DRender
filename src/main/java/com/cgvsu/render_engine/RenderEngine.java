@@ -2,6 +2,7 @@ package com.cgvsu.render_engine;
 
 import java.util.ArrayList;
 
+import com.cgvsu.math.Vector2f;
 import com.cgvsu.math.Vector3f;
 import com.cgvsu.math.Vector4f;
 import com.cgvsu.math.Matrix4f;
@@ -135,7 +136,7 @@ public class RenderEngine {
             zBuffer.clear();
         }
 
-        final int nPolygons = mesh.polygons.size();
+        final int nPolygons = mesh.getPolygonCount();
         
         int polygonSkip = 1;
         if (nPolygons > 10000) {
@@ -147,7 +148,7 @@ public class RenderEngine {
         }
         
         for (int polygonInd = 0; polygonInd < nPolygons; polygonInd += polygonSkip) {
-            Polygon polygon = mesh.polygons.get(polygonInd);
+            Polygon polygon = mesh.getPolygon(polygonInd);
             final int nVerticesInPolygon = polygon.getVertexIndices().size();
 
             if (nVerticesInPolygon < 3) {
@@ -159,7 +160,7 @@ public class RenderEngine {
             ArrayList<Float> resultInvW = new ArrayList<>();
             ArrayList<Vector4f> transformedVertices = new ArrayList<>();
             for (int vertexInPolygonInd = 0; vertexInPolygonInd < nVerticesInPolygon; ++vertexInPolygonInd) {
-                Vector3f vertex = mesh.vertices.get(polygon.getVertexIndices().get(vertexInPolygonInd));
+                Vector3f vertex = mesh.getVertex(polygon.getVertexIndices().get(vertexInPolygonInd));
 
                 Vector4f homogeneousVertex = new Vector4f(vertex, 1.0f);
                 Vector4f transformed = modelViewProjectionMatrix.multiply(homogeneousVertex);
@@ -197,17 +198,20 @@ public class RenderEngine {
                 if (texture != null) {
                     ArrayList<Integer> textureIndices = polygon.getTextureVertexIndices();
                     if (textureIndices != null && textureIndices.size() >= 3) {
-                        if (textureIndices.get(0) >= 0 && textureIndices.get(0) < mesh.textureVertices.size()) {
-                            u0 = mesh.textureVertices.get(textureIndices.get(0)).x;
-                            v0 = mesh.textureVertices.get(textureIndices.get(0)).y;
+                        if (textureIndices.get(0) >= 0 && textureIndices.get(0) < mesh.getTextureVertexCount()) {
+                            Vector2f tex0 = mesh.getTextureVertex(textureIndices.get(0));
+                            u0 = tex0.x;
+                            v0 = tex0.y;
                         }
-                        if (textureIndices.get(1) >= 0 && textureIndices.get(1) < mesh.textureVertices.size()) {
-                            u1 = mesh.textureVertices.get(textureIndices.get(1)).x;
-                            v1 = mesh.textureVertices.get(textureIndices.get(1)).y;
+                        if (textureIndices.get(1) >= 0 && textureIndices.get(1) < mesh.getTextureVertexCount()) {
+                            Vector2f tex1 = mesh.getTextureVertex(textureIndices.get(1));
+                            u1 = tex1.x;
+                            v1 = tex1.y;
                         }
-                        if (textureIndices.get(2) >= 0 && textureIndices.get(2) < mesh.textureVertices.size()) {
-                            u2 = mesh.textureVertices.get(textureIndices.get(2)).x;
-                            v2 = mesh.textureVertices.get(textureIndices.get(2)).y;
+                        if (textureIndices.get(2) >= 0 && textureIndices.get(2) < mesh.getTextureVertexCount()) {
+                            Vector2f tex2 = mesh.getTextureVertex(textureIndices.get(2));
+                            u2 = tex2.x;
+                            v2 = tex2.y;
                         }
                     }
                 }
@@ -246,17 +250,20 @@ public class RenderEngine {
                     for (int vertexInPolygonInd = 1; vertexInPolygonInd < nVerticesInPolygon - 1; ++vertexInPolygonInd) {
                         float u0 = 0.0f, v0 = 0.0f, u1 = 0.0f, v1 = 0.0f, u2 = 0.0f, v2 = 0.0f;
                         if (texture != null && textureIndices != null && textureIndices.size() >= vertexInPolygonInd + 2) {
-                            if (textureIndices.get(0) >= 0 && textureIndices.get(0) < mesh.textureVertices.size()) {
-                                u0 = mesh.textureVertices.get(textureIndices.get(0)).x;
-                                v0 = mesh.textureVertices.get(textureIndices.get(0)).y;
+                            if (textureIndices.get(0) >= 0 && textureIndices.get(0) < mesh.getTextureVertexCount()) {
+                                Vector2f tex0 = mesh.getTextureVertex(textureIndices.get(0));
+                                u0 = tex0.x;
+                                v0 = tex0.y;
                             }
-                            if (textureIndices.get(vertexInPolygonInd) >= 0 && textureIndices.get(vertexInPolygonInd) < mesh.textureVertices.size()) {
-                                u1 = mesh.textureVertices.get(textureIndices.get(vertexInPolygonInd)).x;
-                                v1 = mesh.textureVertices.get(textureIndices.get(vertexInPolygonInd)).y;
+                            if (textureIndices.get(vertexInPolygonInd) >= 0 && textureIndices.get(vertexInPolygonInd) < mesh.getTextureVertexCount()) {
+                                Vector2f tex1 = mesh.getTextureVertex(textureIndices.get(vertexInPolygonInd));
+                                u1 = tex1.x;
+                                v1 = tex1.y;
                             }
-                            if (textureIndices.get(vertexInPolygonInd + 1) >= 0 && textureIndices.get(vertexInPolygonInd + 1) < mesh.textureVertices.size()) {
-                                u2 = mesh.textureVertices.get(textureIndices.get(vertexInPolygonInd + 1)).x;
-                                v2 = mesh.textureVertices.get(textureIndices.get(vertexInPolygonInd + 1)).y;
+                            if (textureIndices.get(vertexInPolygonInd + 1) >= 0 && textureIndices.get(vertexInPolygonInd + 1) < mesh.getTextureVertexCount()) {
+                                Vector2f tex2 = mesh.getTextureVertex(textureIndices.get(vertexInPolygonInd + 1));
+                                u2 = tex2.x;
+                                v2 = tex2.y;
                             }
                         }
                         
@@ -320,28 +327,28 @@ public class RenderEngine {
      */
     private static boolean isFrontFacingByNormal(
             Model mesh, int polygonIndex, Matrix4f modelMatrix, Matrix4f viewMatrix) {
-        if (mesh.polygons == null || polygonIndex >= mesh.polygons.size()) {
+        if (polygonIndex >= mesh.getPolygonCount()) {
             return true; // Если не можем проверить, считаем видимым
         }
         
-        Polygon polygon = mesh.polygons.get(polygonIndex);
+        Polygon polygon = mesh.getPolygon(polygonIndex);
         ArrayList<Integer> normalIndices = polygon.getNormalIndices();
         
         Vector3f normal;
         
-        if (mesh.normals != null && !mesh.normals.isEmpty() && 
+        if (mesh.getNormalCount() > 0 && 
             normalIndices != null && !normalIndices.isEmpty() && 
-            normalIndices.get(0) < mesh.normals.size()) {
-            normal = mesh.normals.get(normalIndices.get(0));
+            normalIndices.get(0) < mesh.getNormalCount()) {
+            normal = mesh.getNormal(normalIndices.get(0));
         } else {
             ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
             if (vertexIndices.size() < 3) {
                 return true;
             }
             
-            Vector3f v0 = mesh.vertices.get(vertexIndices.get(0));
-            Vector3f v1 = mesh.vertices.get(vertexIndices.get(1));
-            Vector3f v2 = mesh.vertices.get(vertexIndices.get(2));
+            Vector3f v0 = mesh.getVertex(vertexIndices.get(0));
+            Vector3f v1 = mesh.getVertex(vertexIndices.get(1));
+            Vector3f v2 = mesh.getVertex(vertexIndices.get(2));
             
             Vector3f edge1 = v1.subtract(v0);
             Vector3f edge2 = v2.subtract(v0);

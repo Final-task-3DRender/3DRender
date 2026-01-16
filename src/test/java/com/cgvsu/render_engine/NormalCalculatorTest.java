@@ -19,22 +19,22 @@ class NormalCalculatorTest {
     void testRecalculateNormals_SimpleTriangle() {
         // Создаем простой треугольник в плоскости XY
         Model model = new Model();
-        model.vertices.add(new Vector3f(0, 0, 0));
-        model.vertices.add(new Vector3f(1, 0, 0));
-        model.vertices.add(new Vector3f(0, 1, 0));
+        model.addVertex(new Vector3f(0, 0, 0));
+        model.addVertex(new Vector3f(1, 0, 0));
+        model.addVertex(new Vector3f(0, 1, 0));
         
         Polygon polygon = new Polygon();
         polygon.setVertexIndices(new ArrayList<>(java.util.Arrays.asList(0, 1, 2)));
-        model.polygons.add(polygon);
+        model.addPolygon(polygon);
         
         // Пересчитываем нормали
         NormalCalculator.recalculateNormals(model);
         
         // Проверяем, что нормаль была создана
-        Assertions.assertEquals(1, model.normals.size());
+        Assertions.assertEquals(1, model.getNormalCount());
         
         // Нормаль должна быть направлена вдоль оси Z (вверх)
-        Vector3f normal = model.normals.get(0);
+        Vector3f normal = model.getNormal(0);
         Assertions.assertEquals(0.0, normal.x, EPSILON);
         Assertions.assertEquals(0.0, normal.y, EPSILON);
         Assertions.assertEquals(1.0, Math.abs(normal.z), EPSILON);
@@ -51,33 +51,33 @@ class NormalCalculatorTest {
         // Создаем два треугольника
         Model model = new Model();
         // Первый треугольник в плоскости XY
-        model.vertices.add(new Vector3f(0, 0, 0));
-        model.vertices.add(new Vector3f(1, 0, 0));
-        model.vertices.add(new Vector3f(0, 1, 0));
+        model.addVertex(new Vector3f(0, 0, 0));
+        model.addVertex(new Vector3f(1, 0, 0));
+        model.addVertex(new Vector3f(0, 1, 0));
         // Второй треугольник в плоскости XZ
-        model.vertices.add(new Vector3f(0, 0, 1));
-        model.vertices.add(new Vector3f(1, 0, 1));
+        model.addVertex(new Vector3f(0, 0, 1));
+        model.addVertex(new Vector3f(1, 0, 1));
         
         Polygon polygon1 = new Polygon();
         polygon1.setVertexIndices(new ArrayList<>(java.util.Arrays.asList(0, 1, 2)));
-        model.polygons.add(polygon1);
+        model.addPolygon(polygon1);
         
         Polygon polygon2 = new Polygon();
         polygon2.setVertexIndices(new ArrayList<>(java.util.Arrays.asList(0, 3, 4)));
-        model.polygons.add(polygon2);
+        model.addPolygon(polygon2);
         
         // Пересчитываем нормали
         NormalCalculator.recalculateNormals(model);
         
         // Проверяем, что создано 2 нормали
-        Assertions.assertEquals(2, model.normals.size());
+        Assertions.assertEquals(2, model.getNormalCount());
         
         // Первая нормаль должна быть направлена вдоль Z
-        Vector3f normal1 = model.normals.get(0);
+        Vector3f normal1 = model.getNormal(0);
         Assertions.assertEquals(1.0, Math.abs(normal1.z), EPSILON, "First normal should point along Z axis");
         
         // Вторая нормаль должна быть направлена вдоль Y
-        Vector3f normal2 = model.normals.get(1);
+        Vector3f normal2 = model.getNormal(1);
         Assertions.assertEquals(1.0, Math.abs(normal2.y), EPSILON, "Second normal should point along Y axis");
     }
     
@@ -85,21 +85,21 @@ class NormalCalculatorTest {
     void testRecalculateNormals_ClearsOldNormals() {
         // Создаем модель с существующими нормалями
         Model model = new Model();
-        model.vertices.add(new Vector3f(0, 0, 0));
-        model.vertices.add(new Vector3f(1, 0, 0));
-        model.vertices.add(new Vector3f(0, 1, 0));
-        model.normals.add(new Vector3f(999, 999, 999)); // Старая нормаль
+        model.addVertex(new Vector3f(0, 0, 0));
+        model.addVertex(new Vector3f(1, 0, 0));
+        model.addVertex(new Vector3f(0, 1, 0));
+        model.addNormal(new Vector3f(999, 999, 999)); // Старая нормаль
         
         Polygon polygon = new Polygon();
         polygon.setVertexIndices(new ArrayList<>(java.util.Arrays.asList(0, 1, 2)));
-        model.polygons.add(polygon);
+        model.addPolygon(polygon);
         
         // Пересчитываем нормали
         NormalCalculator.recalculateNormals(model);
         
         // Проверяем, что старая нормаль была удалена
-        Assertions.assertEquals(1, model.normals.size());
-        Vector3f normal = model.normals.get(0);
+        Assertions.assertEquals(1, model.getNormalCount());
+        Vector3f normal = model.getNormal(0);
         Assertions.assertNotEquals(999.0, normal.x, EPSILON, "Old normal should be cleared");
     }
     
@@ -109,7 +109,7 @@ class NormalCalculatorTest {
         
         // Не должно быть исключений
         Assertions.assertDoesNotThrow(() -> NormalCalculator.recalculateNormals(model));
-        Assertions.assertTrue(model.normals.isEmpty());
+        Assertions.assertEquals(0, model.getNormalCount());
     }
     
     @Test
@@ -121,20 +121,20 @@ class NormalCalculatorTest {
     @Test
     void testRecalculateNormals_EmptyPolygons() {
         Model model = new Model();
-        model.vertices.add(new Vector3f(0, 0, 0));
-        model.vertices.add(new Vector3f(1, 0, 0));
+        model.addVertex(new Vector3f(0, 0, 0));
+        model.addVertex(new Vector3f(1, 0, 0));
         
         // Модель без полигонов
         Assertions.assertDoesNotThrow(() -> NormalCalculator.recalculateNormals(model));
-        Assertions.assertTrue(model.normals.isEmpty());
+        Assertions.assertEquals(0, model.getNormalCount());
     }
     
     @Test
     void testCalculatePolygonNormal_SimpleTriangle() {
         Model model = new Model();
-        model.vertices.add(new Vector3f(0, 0, 0));
-        model.vertices.add(new Vector3f(1, 0, 0));
-        model.vertices.add(new Vector3f(0, 1, 0));
+        model.addVertex(new Vector3f(0, 0, 0));
+        model.addVertex(new Vector3f(1, 0, 0));
+        model.addVertex(new Vector3f(0, 1, 0));
         
         Polygon polygon = new Polygon();
         polygon.setVertexIndices(new ArrayList<>(java.util.Arrays.asList(0, 1, 2)));
@@ -155,9 +155,9 @@ class NormalCalculatorTest {
     void testCalculatePolygonNormal_DifferentOrientation() {
         // Треугольник в плоскости XZ
         Model model = new Model();
-        model.vertices.add(new Vector3f(0, 0, 0));
-        model.vertices.add(new Vector3f(1, 0, 0));
-        model.vertices.add(new Vector3f(0, 0, 1));
+        model.addVertex(new Vector3f(0, 0, 0));
+        model.addVertex(new Vector3f(1, 0, 0));
+        model.addVertex(new Vector3f(0, 0, 1));
         
         Polygon polygon = new Polygon();
         polygon.setVertexIndices(new ArrayList<>(java.util.Arrays.asList(0, 1, 2)));
@@ -202,32 +202,32 @@ class NormalCalculatorTest {
         // Создаем простой куб (8 вершин)
         Model model = new Model();
         // Вершины куба
-        model.vertices.add(new Vector3f(-1, -1, -1)); // 0
-        model.vertices.add(new Vector3f(1, -1, -1));  // 1
-        model.vertices.add(new Vector3f(1, 1, -1));   // 2
-        model.vertices.add(new Vector3f(-1, 1, -1));  // 3
-        model.vertices.add(new Vector3f(-1, -1, 1));  // 4
-        model.vertices.add(new Vector3f(1, -1, 1));   // 5
-        model.vertices.add(new Vector3f(1, 1, 1));    // 6
-        model.vertices.add(new Vector3f(-1, 1, 1));   // 7
+        model.addVertex(new Vector3f(-1, -1, -1)); // 0
+        model.addVertex(new Vector3f(1, -1, -1));  // 1
+        model.addVertex(new Vector3f(1, 1, -1));   // 2
+        model.addVertex(new Vector3f(-1, 1, -1));  // 3
+        model.addVertex(new Vector3f(-1, -1, 1));  // 4
+        model.addVertex(new Vector3f(1, -1, 1));   // 5
+        model.addVertex(new Vector3f(1, 1, 1));    // 6
+        model.addVertex(new Vector3f(-1, 1, 1));   // 7
         
         // Передняя грань (Z = 1)
         Polygon front1 = new Polygon();
         front1.setVertexIndices(new ArrayList<>(java.util.Arrays.asList(4, 5, 6)));
-        model.polygons.add(front1);
+        model.addPolygon(front1);
         
         Polygon front2 = new Polygon();
         front2.setVertexIndices(new ArrayList<>(java.util.Arrays.asList(4, 6, 7)));
-        model.polygons.add(front2);
+        model.addPolygon(front2);
         
         // Пересчитываем нормали
         NormalCalculator.recalculateNormals(model);
         
         // Проверяем, что создано 2 нормали
-        Assertions.assertEquals(2, model.normals.size());
+        Assertions.assertEquals(2, model.getNormalCount());
         
         // Обе нормали должны быть направлены вдоль оси Z (вперед)
-        for (Vector3f normal : model.normals) {
+        for (Vector3f normal : model.getNormals()) {
             Assertions.assertEquals(1.0, Math.abs(normal.z), EPSILON, "Normal should point along Z axis");
             Assertions.assertEquals(1.0, normal.length(), EPSILON, "Normal should be normalized");
         }
@@ -237,9 +237,9 @@ class NormalCalculatorTest {
     void testCalculatePolygonNormal_Normalized() {
         // Создаем треугольник с большими координатами
         Model model = new Model();
-        model.vertices.add(new Vector3f(0, 0, 0));
-        model.vertices.add(new Vector3f(100, 0, 0));
-        model.vertices.add(new Vector3f(0, 100, 0));
+        model.addVertex(new Vector3f(0, 0, 0));
+        model.addVertex(new Vector3f(100, 0, 0));
+        model.addVertex(new Vector3f(0, 100, 0));
         
         Polygon polygon = new Polygon();
         polygon.setVertexIndices(new ArrayList<>(java.util.Arrays.asList(0, 1, 2)));

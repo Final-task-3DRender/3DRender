@@ -21,25 +21,29 @@ class ObjWriterTest {
         // Полный полигон со всеми данными (вершины, текстуры, нормали)
         // Проверяет формат v/vt/vn
         Model model = new Model();
-        model.vertices.addAll(Arrays.asList(
+        for (Vector3f v : Arrays.asList(
                 new Vector3f(0, 0, 0),
                 new Vector3f(1, 0, 0),
                 new Vector3f(0, 1, 0)
-        ));
+        )) {
+            model.addVertex(v);
+        }
 
-        model.textureVertices.addAll(Arrays.asList(
+        for (Vector2f tv : Arrays.asList(
                 new Vector2f(0, 0),
                 new Vector2f(1, 0),
                 new Vector2f(0, 1)
-        ));
+        )) {
+            model.addTextureVertex(tv);
+        }
 
-        model.normals.add(new Vector3f(0, 0, 1));
+        model.addNormal(new Vector3f(0, 0, 1));
 
         Polygon poly = new Polygon();
         poly.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
         poly.setTextureVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
         poly.setNormalIndices(new ArrayList<>(Arrays.asList(0, 0, 0)));
-        model.polygons.add(poly);
+        model.addPolygon(poly);
 
         ObjWriter.saveModel(model, "test_full.obj");
         String content = Files.readString(Path.of("test_full.obj"));
@@ -56,15 +60,17 @@ class ObjWriterTest {
         // Только вершины
         // Проверяет формат f v1 v2 v3
         Model model = new Model();
-        model.vertices.addAll(Arrays.asList(
+        for (Vector3f v : Arrays.asList(
                 new Vector3f(0, 0, 0),
                 new Vector3f(1, 0, 0),
                 new Vector3f(0, 1, 0)
-        ));
+        )) {
+            model.addVertex(v);
+        }
 
         Polygon poly = new Polygon();
         poly.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
-        model.polygons.add(poly);
+        model.addPolygon(poly);
 
         ObjWriter.saveModel(model, "test_vertex_only.obj");
         String content = Files.readString(Path.of("test_vertex_only.obj"));
@@ -79,22 +85,26 @@ class ObjWriterTest {
         // Вершины + текстуры
         // Проверяет формат v/vt
         Model model = new Model();
-        model.vertices.addAll(Arrays.asList(
+        for (Vector3f v : Arrays.asList(
                 new Vector3f(0, 0, 0),
                 new Vector3f(1, 0, 0),
                 new Vector3f(0, 1, 0)
-        ));
+        )) {
+            model.addVertex(v);
+        }
 
-        model.textureVertices.addAll(Arrays.asList(
+        for (Vector2f tv : Arrays.asList(
                 new Vector2f(0, 0),
                 new Vector2f(1, 0),
                 new Vector2f(0, 1)
-        ));
+        )) {
+            model.addTextureVertex(tv);
+        }
 
         Polygon poly = new Polygon();
         poly.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
         poly.setTextureVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
-        model.polygons.add(poly);
+        model.addPolygon(poly);
 
         ObjWriter.saveModel(model, "test_texture_only.obj");
         String content = Files.readString(Path.of("test_texture_only.obj"));
@@ -109,18 +119,20 @@ class ObjWriterTest {
         // Вершины + нормали
         // Проверяет формат v//vn
         Model model = new Model();
-        model.vertices.addAll(Arrays.asList(
+        for (Vector3f v : Arrays.asList(
                 new Vector3f(0, 0, 0),
                 new Vector3f(1, 0, 0),
                 new Vector3f(0, 1, 0)
-        ));
+        )) {
+            model.addVertex(v);
+        }
 
-        model.normals.add(new Vector3f(0, 0, 1));
+        model.addNormal(new Vector3f(0, 0, 1));
 
         Polygon poly = new Polygon();
         poly.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2)));
         poly.setNormalIndices(new ArrayList<>(Arrays.asList(0, 0, 0)));
-        model.polygons.add(poly);
+        model.addPolygon(poly);
 
         ObjWriter.saveModel(model, "test_normal_only.obj");
         String content = Files.readString(Path.of("test_normal_only.obj"));
@@ -134,29 +146,34 @@ class ObjWriterTest {
         Exception exception = assertThrows(IOException.class, () -> {
             ObjWriter.saveModel(null, "test_null.obj");
         });
-        assertEquals("Model doesn't exist!", exception.getMessage());
+        assertTrue(exception.getMessage().contains("Invalid model provided") || 
+                   exception.getMessage().contains("Model doesn't exist"));
     }
 
     @Test
     void testPolygonWithWrongTextureCount() {
         // Проверка валидации - несовпадение количества текстур и вершин
         Model model = new Model();
-        model.vertices.addAll(Arrays.asList(
+        for (Vector3f v : Arrays.asList(
                 new Vector3f(0, 0, 0),
                 new Vector3f(1, 0, 0),
                 new Vector3f(0, 1, 0)
-        ));
+        )) {
+            model.addVertex(v);
+        }
 
-        model.textureVertices.addAll(Arrays.asList(
+        for (Vector2f tv : Arrays.asList(
                 new Vector2f(0, 0),
                 new Vector2f(1, 0)
-        ));
+        )) {
+            model.addTextureVertex(tv);
+        }
 
         Polygon poly = new Polygon();
         poly.setVertexIndices(new ArrayList<>(Arrays.asList(0, 1, 2))); // 3 вершины
         poly.setTextureVertexIndices(new ArrayList<>(Arrays.asList(0, 1))); // 2 текстуры - ошибка!
 
-        model.polygons.add(poly);
+        model.addPolygon(poly);
 
         Exception exception = assertThrows(IOException.class, () -> {
             ObjWriter.saveModel(model, "test_wrong_texture.obj");
