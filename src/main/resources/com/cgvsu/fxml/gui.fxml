@@ -32,6 +32,9 @@
                 </Menu>
                 <Menu mnemonicParsing="false" text="Edit">
                     <MenuItem fx:id="resetTransformMenuItem" mnemonicParsing="false" onAction="#handleResetTransform" text="Reset Transform"/>
+                    <SeparatorMenuItem/>
+                    <MenuItem fx:id="deletePolygonMenuItem" mnemonicParsing="false" onAction="#handleDeletePolygon" text="Delete Polygon..."/>
+                    <MenuItem fx:id="deleteVertexMenuItem" mnemonicParsing="false" onAction="#handleDeleteVertex" text="Delete Vertex..."/>
                 </Menu>
                 <Menu mnemonicParsing="false" text="Camera">
                     <MenuItem fx:id="resetCameraMenuItem" mnemonicParsing="false" onAction="#handleResetCamera" text="Reset Camera"/>
@@ -49,6 +52,9 @@
                 <Separator/>
                 <Label text="Transform:"/>
                 <Button fx:id="resetTransformButton" onAction="#handleResetTransform" text="Reset Transform"/>
+                <Separator/>
+                <Button fx:id="deletePolygonButton" onAction="#handleDeletePolygon" text="Delete Polygon"/>
+                <Button fx:id="deleteVertexButton" onAction="#handleDeleteVertex" text="Delete Vertex"/>
             </ToolBar>
         </VBox>
     </top>
@@ -144,6 +150,10 @@
                     <Label fx:id="scenePositionLabel" text="Position: —"/>
                     <Label fx:id="sceneRotationLabel" text="Rotation: —"/>
                     <Label fx:id="sceneScaleLabel" text="Scale: —"/>
+                    <Separator/>
+                    <Label text="Model Editing:" style="-fx-font-weight: bold;"/>
+                    <Button fx:id="deletePolygonPanelButton" text="Delete Polygon..." onAction="#handleDeletePolygon" style="-fx-max-width: infinity;"/>
+                    <Button fx:id="deleteVertexPanelButton" text="Delete Vertex..." onAction="#handleDeleteVertex" style="-fx-max-width: infinity;"/>
                 </VBox>
             </TitledPane>
         </VBox>

@@ -29,27 +29,27 @@ public class Model {
      * Список вершин модели в трехмерном пространстве.
      * Каждая вершина представлена как Vector3f (x, y, z).
      */
-    private final ArrayList<Vector3f> vertices = new ArrayList<>();
+    ArrayList<Vector3f> vertices = new ArrayList<>();
     
     /**
      * Список текстурных координат (UV координаты).
      * Каждая координата представлена как Vector2f (u, v), где значения обычно в диапазоне [0, 1].
      */
-    private final ArrayList<Vector2f> textureVertices = new ArrayList<>();
+    ArrayList<Vector2f> textureVertices = new ArrayList<>();
     
     /**
      * Список нормалей вершин.
      * Нормали используются для расчета освещения и определения ориентации граней.
      * Каждая нормаль представлена как Vector3f и должна быть нормализована.
      */
-    private final ArrayList<Vector3f> normals = new ArrayList<>();
+    ArrayList<Vector3f> normals = new ArrayList<>();
     
     /**
      * Список полигонов (граней) модели.
      * Каждый полигон ссылается на индексы вершин, текстурных координат и нормалей.
      * Полигоны должны быть триангулированы (состоять из треугольников) перед рендерингом.
      */
-    private final ArrayList<Polygon> polygons = new ArrayList<>();
+    ArrayList<Polygon> polygons = new ArrayList<>();
 
     /**
      * Возвращает список вершин модели.
@@ -226,5 +226,45 @@ public class Model {
      */
     public Polygon getPolygon(int index) {
         return polygons.get(index);
+    }
+
+    /**
+     * Возвращает изменяемый список вершин модели.
+     * Используется для внутренних операций модификации модели.
+     * 
+     * @return изменяемый список вершин
+     */
+    public ArrayList<Vector3f> getVerticesMutable() {
+        return vertices;
+    }
+
+    /**
+     * Возвращает изменяемый список текстурных координат модели.
+     * Используется для внутренних операций модификации модели.
+     * 
+     * @return изменяемый список текстурных координат
+     */
+    public ArrayList<Vector2f> getTextureVerticesMutable() {
+        return textureVertices;
+    }
+
+    /**
+     * Возвращает изменяемый список нормалей модели.
+     * Используется для внутренних операций модификации модели.
+     * 
+     * @return изменяемый список нормалей
+     */
+    public ArrayList<Vector3f> getNormalsMutable() {
+        return normals;
+    }
+
+    /**
+     * Возвращает изменяемый список полигонов модели.
+     * Используется для внутренних операций модификации модели.
+     * 
+     * @return изменяемый список полигонов
+     */
+    public ArrayList<Polygon> getPolygonsMutable() {
+        return polygons;
     }
 }

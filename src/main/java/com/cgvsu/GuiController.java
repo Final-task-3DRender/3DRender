@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 
 import com.cgvsu.math.Vector3f;
 import com.cgvsu.model.Model;
@@ -50,11 +52,14 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
+import javafx.scene.control.TextInputDialog;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import com.cgvsu.ui.SceneModel;
 import com.cgvsu.ui.FileOperationsHandler;
 import com.cgvsu.ui.ModelTransformController;
+import com.cgvsu.removers.PolygonRemover;
+import com.cgvsu.removers.VertexRemover;
 
 /**
  * Главный контроллер JavaFX приложения для просмотра и редактирования 3D моделей.
@@ -913,5 +918,183 @@ public class GuiController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    /**
+     * Обрабатывает удаление полигона из модели.
+     * 
+     * <p>Показывает диалог для ввода индекса полигона и удаляет его из модели.
+     * Также удаляет неиспользуемые вершины, если пользователь выберет эту опцию.
+     */
+    @FXML
+    private void handleDeletePolygon() {
+        SceneModel current = getSelectedSceneModel();
+        if (current == null) {
+            showError("No model selected", "Please select a model first.");
+            return;
+        }
+
+        Model model = current.getModel();
+        int polygonCount = model.getPolygonCount();
+        
+        if (polygonCount == 0) {
+            showError("No polygons", "The model has no polygons to delete.");
+            return;
+        }
+
+        // Создаем диалог для ввода индекса полигона
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Delete Polygon");
+        dialog.setHeaderText("Enter polygon index to delete");
+        dialog.setContentText(String.format("Polygon index (0-%d):", polygonCount - 1));
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isPresent() && !result.get().trim().isEmpty()) {
+            try {
+                int index = Integer.parseInt(result.get().trim());
+                
+                if (index < 0 || index >= polygonCount) {
+                    showError("Invalid index", String.format("Index must be between 0 and %d.", polygonCount - 1));
+                    return;
+                }
+
+                // Спрашиваем, удалять ли неиспользуемые вершины
+                Alert confirmDialog = new Alert(AlertType.CONFIRMATION);
+                confirmDialog.setTitle("Delete Free Vertices");
+                confirmDialog.setHeaderText("Delete unused vertices?");
+                confirmDialog.setContentText("Do you want to delete vertices that are no longer used by any polygon?");
+                
+                ButtonType yesButton = new ButtonType("Yes", ButtonBar.ButtonData.YES);
+                ButtonType noButton = new ButtonType("No", ButtonBar.ButtonData.NO);
+                ButtonType cancelButton = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+                
+                confirmDialog.getButtonTypes().setAll(yesButton, noButton, cancelButton);
+                
+                Optional<ButtonType> confirmResult = confirmDialog.showAndWait();
+                
+                if (confirmResult.isPresent() && confirmResult.get() == cancelButton) {
+                    return; // Пользователь отменил операцию
+                }
+                
+                boolean deleteFreeVertices = confirmResult.isPresent() && confirmResult.get() == yesButton;
+                
+                // Удаляем полигон
+                Set<Integer> polygonIndicesToDelete = new HashSet<>();
+                polygonIndicesToDelete.add(index);
+                
+                PolygonRemover.deletePolygons(model, polygonIndicesToDelete, deleteFreeVertices);
+                
+                // Пересчитываем нормали после удаления
+                NormalCalculator.recalculateNormals(model);
+                
+                showSuccess("Polygon deleted", String.format("Polygon %d has been deleted.", index));
+                
+                // Обновляем UI
+                updateStatusBar();
+                updateSceneInfo();
+                updateTransformUI();
+                
+            } catch (NumberFormatException e) {
+                showError("Invalid input", "Please enter a valid number.");
+            } catch (Exception e) {
+                showError("Error deleting polygon", "Failed to delete polygon: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Обрабатывает удаление вершины из модели.
+     * 
+     * <p>Показывает диалог для ввода индекса вершины и удаляет её из модели.
+     * Также удаляет все полигоны, использующие эту вершину.
+     */
+    @FXML
+    private void handleDeleteVertex() {
+        SceneModel current = getSelectedSceneModel();
+        if (current == null) {
+            showError("No model selected", "Please select a model first.");
+            return;
+        }
+
+        Model model = current.getModel();
+        int vertexCount = model.getVertexCount();
+        
+        if (vertexCount == 0) {
+            showError("No vertices", "The model has no vertices to delete.");
+            return;
+        }
+
+        // Создаем диалог для ввода индекса вершины
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Delete Vertex");
+        dialog.setHeaderText("Enter vertex index to delete");
+        dialog.setContentText(String.format("Vertex index (0-%d):", vertexCount - 1));
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isPresent() && !result.get().trim().isEmpty()) {
+            try {
+                int index = Integer.parseInt(result.get().trim());
+                
+                if (index < 0 || index >= vertexCount) {
+                    showError("Invalid index", String.format("Index must be between 0 and %d.", vertexCount - 1));
+                    return;
+                }
+
+                // Предупреждаем, что будут удалены полигоны
+                Alert warningDialog = new Alert(AlertType.CONFIRMATION);
+                warningDialog.setTitle("Delete Vertex");
+                warningDialog.setHeaderText("Warning: Polygons will be deleted");
+                warningDialog.setContentText(
+                    "Deleting a vertex will also delete all polygons that use this vertex.\n" +
+                    "Do you want to continue?"
+                );
+                
+                Optional<ButtonType> confirmResult = warningDialog.showAndWait();
+                
+                if (!confirmResult.isPresent() || confirmResult.get() != ButtonType.OK) {
+                    return; // Пользователь отменил операцию
+                }
+                
+                // Спрашиваем, удалять ли изначально свободные вершины
+                Alert freeVerticesDialog = new Alert(AlertType.CONFIRMATION);
+                freeVerticesDialog.setTitle("Delete Free Vertices");
+                freeVerticesDialog.setHeaderText("Delete initially free vertices?");
+                freeVerticesDialog.setContentText("Do you want to delete vertices that were never used by any polygon?");
+                
+                ButtonType yesButton = new ButtonType("Yes", ButtonBar.ButtonData.YES);
+                ButtonType noButton = new ButtonType("No", ButtonBar.ButtonData.NO);
+                
+                freeVerticesDialog.getButtonTypes().setAll(yesButton, noButton);
+                
+                Optional<ButtonType> freeVerticesResult = freeVerticesDialog.showAndWait();
+                boolean removeInitiallyFreeVertices = freeVerticesResult.isPresent() && freeVerticesResult.get() == yesButton;
+                
+                // Удаляем вершину
+                Set<Integer> verticesToDelete = new HashSet<>();
+                verticesToDelete.add(index);
+                
+                int polygonsBefore = model.getPolygonCount();
+                VertexRemover.deleteVertices(model, verticesToDelete, removeInitiallyFreeVertices);
+                int polygonsAfter = model.getPolygonCount();
+                int deletedPolygons = polygonsBefore - polygonsAfter;
+                
+                // Пересчитываем нормали после удаления
+                NormalCalculator.recalculateNormals(model);
+                
+                showSuccess("Vertex deleted", 
+                    String.format("Vertex %d has been deleted.\n%d polygon(s) were also deleted.", 
+                        index, deletedPolygons));
+                
+                // Обновляем UI
+                updateStatusBar();
+                updateSceneInfo();
+                updateTransformUI();
+                
+            } catch (NumberFormatException e) {
+                showError("Invalid input", "Please enter a valid number.");
+            } catch (Exception e) {
+                showError("Error deleting vertex", "Failed to delete vertex: " + e.getMessage());
+            }
+        }
     }
 }
