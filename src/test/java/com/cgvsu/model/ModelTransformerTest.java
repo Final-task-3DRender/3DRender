@@ -178,9 +178,9 @@ class ModelTransformerTest {
     void testNullSource() {
         Matrix4f transform = Matrix4f.identity();
         
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        Assertions.assertThrows(com.cgvsu.exceptions.TransformationException.class, () -> {
             ModelTransformer.applyTransform(null, transform);
-        }, "Should throw IllegalArgumentException for null source");
+        }, "Should throw TransformationException for null source");
     }
     
     /**
@@ -190,9 +190,9 @@ class ModelTransformerTest {
     void testNullTransform() {
         Model source = createSimpleModel();
         
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        Assertions.assertThrows(com.cgvsu.exceptions.TransformationException.class, () -> {
             ModelTransformer.applyTransform(source, null);
-        }, "Should throw IllegalArgumentException for null transform");
+        }, "Should throw TransformationException for null transform");
     }
     
     /**

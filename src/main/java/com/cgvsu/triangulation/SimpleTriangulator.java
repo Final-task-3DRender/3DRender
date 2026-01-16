@@ -27,6 +27,16 @@ public class SimpleTriangulator implements Triangulator {
     
     @Override
     public List<Polygon> triangulatePolygon(Model model, Polygon polygon) {
+        if (model == null) {
+            throw new IllegalArgumentException("Model cannot be null");
+        }
+        if (polygon == null) {
+            throw new IllegalArgumentException("Polygon cannot be null");
+        }
+        if (model.getVertexCount() == 0) {
+            throw new IllegalArgumentException("Model must have at least one vertex");
+        }
+        
         ArrayList<Integer> verticesIndexes = polygon.getVertexIndices();
         
         if (verticesIndexes.size() <= 3) {

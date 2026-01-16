@@ -58,9 +58,23 @@ public class NormalCalculator {
                 continue;
             }
             
-            Vector3f v0 = model.getVertex(vertexIndices.get(0));
-            Vector3f v1 = model.getVertex(vertexIndices.get(1));
-            Vector3f v2 = model.getVertex(vertexIndices.get(2));
+            int idx0 = vertexIndices.get(0);
+            int idx1 = vertexIndices.get(1);
+            int idx2 = vertexIndices.get(2);
+            
+            if (idx0 < 0 || idx0 >= model.getVertexCount() ||
+                idx1 < 0 || idx1 >= model.getVertexCount() ||
+                idx2 < 0 || idx2 >= model.getVertexCount()) {
+                continue; // Пропускаем полигоны с некорректными индексами
+            }
+            
+            Vector3f v0 = model.getVertex(idx0);
+            Vector3f v1 = model.getVertex(idx1);
+            Vector3f v2 = model.getVertex(idx2);
+            
+            if (v0 == null || v1 == null || v2 == null) {
+                continue; // Пропускаем полигоны с null вершинами
+            }
             
             Vector3f edge1 = v1.subtract(v0);
             Vector3f edge2 = v2.subtract(v0);
@@ -120,9 +134,23 @@ public class NormalCalculator {
             return new Vector3f(0, 0, 1); // Нормаль по умолчанию
         }
         
-        Vector3f v0 = model.getVertex(vertexIndices.get(0));
-        Vector3f v1 = model.getVertex(vertexIndices.get(1));
-        Vector3f v2 = model.getVertex(vertexIndices.get(2));
+        int idx0 = vertexIndices.get(0);
+        int idx1 = vertexIndices.get(1);
+        int idx2 = vertexIndices.get(2);
+        
+        if (idx0 < 0 || idx0 >= model.getVertexCount() ||
+            idx1 < 0 || idx1 >= model.getVertexCount() ||
+            idx2 < 0 || idx2 >= model.getVertexCount()) {
+            return new Vector3f(0, 0, 1); // Нормаль по умолчанию
+        }
+        
+        Vector3f v0 = model.getVertex(idx0);
+        Vector3f v1 = model.getVertex(idx1);
+        Vector3f v2 = model.getVertex(idx2);
+        
+        if (v0 == null || v1 == null || v2 == null) {
+            return new Vector3f(0, 0, 1); // Нормаль по умолчанию
+        }
         
         Vector3f edge1 = v1.subtract(v0);
         Vector3f edge2 = v2.subtract(v0);

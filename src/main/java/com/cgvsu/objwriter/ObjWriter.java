@@ -39,7 +39,10 @@ public class ObjWriter {
      */
     public static void saveModel(Model model, String filename) throws IOException {
         if (model == null) {
-            throw new IOException("Invalid model provided!");
+            throw new IllegalArgumentException("Model cannot be null");
+        }
+        if (filename == null || filename.trim().isEmpty()) {
+            throw new IllegalArgumentException("Filename cannot be null or empty");
         }
 
         try (FileWriter fileWriter = new FileWriter(filename)) {
