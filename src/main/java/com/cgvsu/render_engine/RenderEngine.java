@@ -44,6 +44,9 @@ import static com.cgvsu.render_engine.GraphicConveyor.vertexToPoint;
  */
 public class RenderEngine {
 
+    // ThreadLocal для переиспользования ZBuffer между кадрами
+    private static final ThreadLocal<ZBuffer> zBufferCache = new ThreadLocal<>();
+
     /**
      * Рендерит модель без трансформаций и с настройками по умолчанию.
      * 
@@ -157,8 +160,16 @@ public class RenderEngine {
 
         ZBuffer zBuffer = null;
         if (settings.isEnableZBuffer()) {
-            zBuffer = new ZBuffer(width, height);
-            zBuffer.clear();
+            // Переиспользуем ZBuffer из кэша, если размер совпадает
+            ZBuffer cached = zBufferCache.get();
+            if (cached != null && cached.getWidth() == width && cached.getHeight() == height) {
+                zBuffer = cached;
+                zBuffer.clear();
+            } else {
+                // Создаем новый ZBuffer при первом использовании или при изменении размера
+                zBuffer = new ZBuffer(width, height);
+                zBufferCache.set(zBuffer);
+            }
         }
 
         final int nPolygons = mesh.getPolygonCount();
