@@ -6,8 +6,6 @@ import com.cgvsu.model.ModelTransformer;
 import com.cgvsu.objreader.ObjReader;
 import com.cgvsu.objwriter.ObjWriter;
 import com.cgvsu.render_engine.NormalCalculator;
-import com.cgvsu.triangulation.EarCuttingTriangulator;
-import com.cgvsu.triangulation.Triangulator;
 import com.cgvsu.transform.ModelMatrixBuilder;
 import com.cgvsu.math.Matrix4f;
 import javafx.stage.FileChooser;
@@ -45,17 +43,21 @@ public class FileOperationsHandler {
      * <p>Выполняет:
      * <ol>
      *   <li>Чтение и парсинг OBJ файла</li>
-     *   <li>Триангуляцию модели (разбиение полигонов на треугольники), если включена</li>
-     *   <li>Пересчет нормалей для правильного отображения</li>
+     *   <li>Пересчет нормалей для правильного отображения (всегда выполняется)</li>
      * </ol>
      * 
+     * <p>Триангуляция выполняется динамически в RenderEngine во время рендеринга,
+     * что позволяет включать/выключать триангуляцию без перезагрузки модели.
+     * 
+     * <p>Нормали всегда пересчитываются, даже если они сохранены в файле,
+     * так как мы не можем им доверять (требование из задания).
+     * 
      * @param file файл OBJ для загрузки
-     * @param enableTriangulation если true, выполняется триангуляция модели
      * @return загруженная и обработанная модель
      * @throws IOException если произошла ошибка при чтении файла
      * @throws com.cgvsu.objreader.ObjReaderException если файл содержит ошибки формата
      */
-    public static Model loadModel(File file, boolean enableTriangulation) throws IOException {
+    public static Model loadModel(File file) throws IOException {
         if (file == null || !file.exists()) {
             throw new IOException("File does not exist: " + (file != null ? file.getAbsolutePath() : "null"));
         }
@@ -65,24 +67,11 @@ public class FileOperationsHandler {
         
         Model mesh = ObjReader.read(fileContent);
         
-        // НЕ триангулируем при загрузке - триангуляция выполняется динамически в RenderEngine
-        // Это позволяет включать/выключать триангуляцию без перезагрузки модели
-        
+        // Всегда пересчитываем нормали, даже если они есть в файле
+        // Это требование из задания: "Нормали следует пересчитывать даже если те сохранены в файле"
         NormalCalculator.recalculateNormals(mesh);
         
         return mesh;
-    }
-    
-    /**
-     * Загружает модель из OBJ файла с триангуляцией по умолчанию (включена).
-     * 
-     * @param file файл OBJ для загрузки
-     * @return загруженная и обработанная модель
-     * @throws IOException если произошла ошибка при чтении файла
-     * @throws com.cgvsu.objreader.ObjReaderException если файл содержит ошибки формата
-     */
-    public static Model loadModel(File file) throws IOException {
-        return loadModel(file, true);
     }
     
     /**
