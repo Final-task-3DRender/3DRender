@@ -53,6 +53,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.ContextMenu;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import com.cgvsu.ui.SceneModel;
@@ -60,6 +61,10 @@ import com.cgvsu.ui.FileOperationsHandler;
 import com.cgvsu.ui.ModelTransformController;
 import com.cgvsu.removers.PolygonRemover;
 import com.cgvsu.removers.VertexRemover;
+import com.cgvsu.math.Vector4f;
+import com.cgvsu.math.Point2f;
+import com.cgvsu.model.Polygon;
+import static com.cgvsu.render_engine.GraphicConveyor.vertexToPoint;
 
 /**
  * Главный контроллер JavaFX приложения для просмотра и редактирования 3D моделей.
@@ -782,7 +787,10 @@ public class GuiController {
      * @param event событие нажатия мыши
      */
     private void handleMousePressed(MouseEvent event) {
-        if (cameraController != null && event.isPrimaryButtonDown()) {
+        if (event.isSecondaryButtonDown()) {
+            // Правая кнопка мыши - показываем контекстное меню
+            handleRightClick(event.getX(), event.getY());
+        } else if (cameraController != null && event.isPrimaryButtonDown()) {
             cameraController.onMousePressed(event.getX(), event.getY());
         }
     }
@@ -1095,6 +1103,331 @@ public class GuiController {
             } catch (Exception e) {
                 showError("Error deleting vertex", "Failed to delete vertex: " + e.getMessage());
             }
+        }
+    }
+
+    /**
+     * Обрабатывает клик правой кнопкой мыши и показывает контекстное меню.
+     * 
+     * @param mouseX координата X мыши
+     * @param mouseY координата Y мыши
+     */
+    private void handleRightClick(double mouseX, double mouseY) {
+        SceneModel current = getSelectedSceneModel();
+        if (current == null) {
+            return; // Нет модели для работы
+        }
+
+        // Определяем полигон и вершину под курсором
+        PickResult pickResult = pickPolygonOrVertex(current, mouseX, mouseY);
+        
+        ContextMenu contextMenu = new ContextMenu();
+        
+        if (pickResult.polygonIndex >= 0) {
+            javafx.scene.control.MenuItem deletePolygonItem = new javafx.scene.control.MenuItem("Delete Polygon");
+            deletePolygonItem.setOnAction(e -> deletePolygonByIndex(current.getModel(), pickResult.polygonIndex));
+            contextMenu.getItems().add(deletePolygonItem);
+        }
+        
+        if (pickResult.vertexIndex >= 0) {
+            javafx.scene.control.MenuItem deleteVertexItem = new javafx.scene.control.MenuItem("Delete Vertex");
+            deleteVertexItem.setOnAction(e -> deleteVertexByIndex(current.getModel(), pickResult.vertexIndex));
+            contextMenu.getItems().add(deleteVertexItem);
+        }
+        
+        if (contextMenu.getItems().isEmpty()) {
+            return; // Нет элементов для удаления
+        }
+        
+        contextMenu.show(canvas, mouseX, mouseY);
+    }
+
+    /**
+     * Результат выбора полигона или вершины.
+     */
+    private static class PickResult {
+        int polygonIndex = -1;
+        int vertexIndex = -1;
+        double polygonDistance = Double.MAX_VALUE;
+        double vertexDistance = Double.MAX_VALUE;
+    }
+
+    /**
+     * Определяет полигон или вершину под курсором мыши.
+     * 
+     * @param sceneModel модель сцены
+     * @param mouseX координата X мыши
+     * @param mouseY координата Y мыши
+     * @return результат выбора с индексами полигона и вершины
+     */
+    private PickResult pickPolygonOrVertex(SceneModel sceneModel, double mouseX, double mouseY) {
+        PickResult result = new PickResult();
+        Model model = sceneModel.getModel();
+        ModelTransform transform = sceneModel.getTransform();
+        
+        if (model.getPolygonCount() == 0 && model.getVertexCount() == 0) {
+            return result;
+        }
+
+        int width = (int) canvas.getWidth();
+        int height = (int) canvas.getHeight();
+        
+        // Строим матрицы преобразования
+        Matrix4f modelMatrix = ModelMatrixBuilder.build(transform);
+        Matrix4f viewMatrix = camera.getViewMatrix();
+        Matrix4f projectionMatrix = camera.getProjectionMatrix();
+        Matrix4f mvpMatrix = projectionMatrix.multiply(viewMatrix).multiply(modelMatrix);
+
+        final double PICK_TOLERANCE = 10.0; // Радиус выбора в пикселях
+
+        // Ищем ближайший полигон
+        for (int i = 0; i < model.getPolygonCount(); i++) {
+            Polygon polygon = model.getPolygon(i);
+            ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
+            
+            if (vertexIndices.size() < 3) {
+                continue;
+            }
+
+            // Преобразуем вершины полигона в экранные координаты
+            ArrayList<Point2f> screenPoints = new ArrayList<>();
+            for (int vertexIdx : vertexIndices) {
+                if (vertexIdx < 0 || vertexIdx >= model.getVertexCount()) {
+                    continue;
+                }
+                Vector3f vertex = model.getVertex(vertexIdx);
+                if (vertex == null) {
+                    continue;
+                }
+
+                Vector4f homogeneousVertex = new Vector4f(vertex, 1.0f);
+                Vector4f transformed = mvpMatrix.multiply(homogeneousVertex);
+                
+                if (Math.abs(transformed.w) > 1e-7f) {
+                    transformed = transformed.divide(transformed.w);
+                }
+                
+                Point2f screenPoint = vertexToPoint(transformed, width, height);
+                screenPoints.add(screenPoint);
+            }
+
+            if (screenPoints.size() < 3) {
+                continue;
+            }
+
+            // Проверяем, находится ли точка внутри полигона или близко к нему
+            double distance = distanceToPolygon(screenPoints, mouseX, mouseY);
+            if (distance < PICK_TOLERANCE && distance < result.polygonDistance) {
+                result.polygonIndex = i;
+                result.polygonDistance = distance;
+            }
+        }
+
+        // Ищем ближайшую вершину
+        for (int i = 0; i < model.getVertexCount(); i++) {
+            Vector3f vertex = model.getVertex(i);
+            if (vertex == null) {
+                continue;
+            }
+
+            Vector4f homogeneousVertex = new Vector4f(vertex, 1.0f);
+            Vector4f transformed = mvpMatrix.multiply(homogeneousVertex);
+            
+            if (Math.abs(transformed.w) > 1e-7f) {
+                transformed = transformed.divide(transformed.w);
+            }
+            
+            Point2f screenPoint = vertexToPoint(transformed, width, height);
+            
+            double distance = Math.sqrt(
+                Math.pow(screenPoint.x - mouseX, 2) + 
+                Math.pow(screenPoint.y - mouseY, 2)
+            );
+            
+            if (distance < PICK_TOLERANCE && distance < result.vertexDistance) {
+                result.vertexIndex = i;
+                result.vertexDistance = distance;
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Вычисляет минимальное расстояние от точки до полигона.
+     * 
+     * @param polygonPoints точки полигона в экранных координатах
+     * @param x координата X точки
+     * @param y координата Y точки
+     * @return минимальное расстояние
+     */
+    private double distanceToPolygon(ArrayList<Point2f> polygonPoints, double x, double y) {
+        if (polygonPoints.isEmpty()) {
+            return Double.MAX_VALUE;
+        }
+
+        // Проверяем расстояние до каждой стороны полигона
+        double minDistance = Double.MAX_VALUE;
+        
+        for (int i = 0; i < polygonPoints.size(); i++) {
+            Point2f p1 = polygonPoints.get(i);
+            Point2f p2 = polygonPoints.get((i + 1) % polygonPoints.size());
+            
+            double distance = distanceToLineSegment(p1.x, p1.y, p2.x, p2.y, x, y);
+            minDistance = Math.min(minDistance, distance);
+        }
+
+        // Проверяем, находится ли точка внутри полигона
+        if (isPointInPolygon(polygonPoints, x, y)) {
+            return 0.0;
+        }
+
+        return minDistance;
+    }
+
+    /**
+     * Вычисляет расстояние от точки до отрезка.
+     */
+    private double distanceToLineSegment(double x1, double y1, double x2, double y2, double px, double py) {
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+        double lengthSquared = dx * dx + dy * dy;
+        
+        if (lengthSquared == 0) {
+            // Отрезок вырожден в точку
+            return Math.sqrt(Math.pow(px - x1, 2) + Math.pow(py - y1, 2));
+        }
+        
+        double t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lengthSquared));
+        double projX = x1 + t * dx;
+        double projY = y1 + t * dy;
+        
+        return Math.sqrt(Math.pow(px - projX, 2) + Math.pow(py - projY, 2));
+    }
+
+    /**
+     * Проверяет, находится ли точка внутри полигона (алгоритм ray casting).
+     */
+    private boolean isPointInPolygon(ArrayList<Point2f> polygonPoints, double x, double y) {
+        if (polygonPoints.size() < 3) {
+            return false;
+        }
+
+        boolean inside = false;
+        for (int i = 0, j = polygonPoints.size() - 1; i < polygonPoints.size(); j = i++) {
+            double xi = polygonPoints.get(i).x;
+            double yi = polygonPoints.get(i).y;
+            double xj = polygonPoints.get(j).x;
+            double yj = polygonPoints.get(j).y;
+            
+            boolean intersect = ((yi > y) != (yj > y)) && 
+                               (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            if (intersect) {
+                inside = !inside;
+            }
+        }
+        
+        return inside;
+    }
+
+    /**
+     * Удаляет полигон по индексу.
+     * 
+     * @param model модель
+     * @param polygonIndex индекс полигона
+     */
+    private void deletePolygonByIndex(Model model, int polygonIndex) {
+        try {
+            // Спрашиваем, удалять ли неиспользуемые вершины
+            Alert confirmDialog = new Alert(AlertType.CONFIRMATION);
+            confirmDialog.setTitle("Delete Polygon");
+            confirmDialog.setHeaderText("Delete unused vertices?");
+            confirmDialog.setContentText("Do you want to delete vertices that are no longer used by any polygon?");
+            
+            ButtonType yesButton = new ButtonType("Yes", ButtonBar.ButtonData.YES);
+            ButtonType noButton = new ButtonType("No", ButtonBar.ButtonData.NO);
+            ButtonType cancelButton = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+            
+            confirmDialog.getButtonTypes().setAll(yesButton, noButton, cancelButton);
+            
+            Optional<ButtonType> confirmResult = confirmDialog.showAndWait();
+            
+            if (confirmResult.isPresent() && confirmResult.get() == cancelButton) {
+                return;
+            }
+            
+            boolean deleteFreeVertices = confirmResult.isPresent() && confirmResult.get() == yesButton;
+            
+            Set<Integer> polygonIndicesToDelete = new HashSet<>();
+            polygonIndicesToDelete.add(polygonIndex);
+            
+            PolygonRemover.deletePolygons(model, polygonIndicesToDelete, deleteFreeVertices);
+            NormalCalculator.recalculateNormals(model);
+            
+            updateStatusBar();
+            updateSceneInfo();
+            updateTransformUI();
+            
+        } catch (Exception e) {
+            showError("Error deleting polygon", "Failed to delete polygon: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Удаляет вершину по индексу.
+     * 
+     * @param model модель
+     * @param vertexIndex индекс вершины
+     */
+    private void deleteVertexByIndex(Model model, int vertexIndex) {
+        try {
+            Alert warningDialog = new Alert(AlertType.CONFIRMATION);
+            warningDialog.setTitle("Delete Vertex");
+            warningDialog.setHeaderText("Warning: Polygons will be deleted");
+            warningDialog.setContentText(
+                "Deleting a vertex will also delete all polygons that use this vertex.\n" +
+                "Do you want to continue?"
+            );
+            
+            Optional<ButtonType> confirmResult = warningDialog.showAndWait();
+            
+            if (!confirmResult.isPresent() || confirmResult.get() != ButtonType.OK) {
+                return;
+            }
+            
+            Alert freeVerticesDialog = new Alert(AlertType.CONFIRMATION);
+            freeVerticesDialog.setTitle("Delete Free Vertices");
+            freeVerticesDialog.setHeaderText("Delete initially free vertices?");
+            freeVerticesDialog.setContentText("Do you want to delete vertices that were never used by any polygon?");
+            
+            ButtonType yesButton = new ButtonType("Yes", ButtonBar.ButtonData.YES);
+            ButtonType noButton = new ButtonType("No", ButtonBar.ButtonData.NO);
+            
+            freeVerticesDialog.getButtonTypes().setAll(yesButton, noButton);
+            
+            Optional<ButtonType> freeVerticesResult = freeVerticesDialog.showAndWait();
+            boolean removeInitiallyFreeVertices = freeVerticesResult.isPresent() && freeVerticesResult.get() == yesButton;
+            
+            Set<Integer> verticesToDelete = new HashSet<>();
+            verticesToDelete.add(vertexIndex);
+            
+            int polygonsBefore = model.getPolygonCount();
+            VertexRemover.deleteVertices(model, verticesToDelete, removeInitiallyFreeVertices);
+            int polygonsAfter = model.getPolygonCount();
+            int deletedPolygons = polygonsBefore - polygonsAfter;
+            
+            NormalCalculator.recalculateNormals(model);
+            
+            showSuccess("Vertex deleted", 
+                String.format("Vertex %d has been deleted.\n%d polygon(s) were also deleted.", 
+                    vertexIndex, deletedPolygons));
+            
+            updateStatusBar();
+            updateSceneInfo();
+            updateTransformUI();
+            
+        } catch (Exception e) {
+            showError("Error deleting vertex", "Failed to delete vertex: " + e.getMessage());
         }
     }
 }
