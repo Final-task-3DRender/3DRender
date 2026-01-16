@@ -1,6 +1,8 @@
 package com.cgvsu.render_engine;
 
 import java.util.ArrayList;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import com.cgvsu.math.Vector2f;
 import com.cgvsu.math.Vector3f;
@@ -44,6 +46,8 @@ import static com.cgvsu.render_engine.GraphicConveyor.vertexToPoint;
  */
 public class RenderEngine {
 
+    private static final Logger logger = Logger.getLogger(RenderEngine.class.getName());
+    
     // ThreadLocal для переиспользования ZBuffer между кадрами
     private static final ThreadLocal<ZBuffer> zBufferCache = new ThreadLocal<>();
 
@@ -242,6 +246,8 @@ public class RenderEngine {
                 } catch (Exception e) {
                     // Если не удалось определить ориентацию полигона, пропускаем его
                     // Это может произойти при некорректных нормалях или вырожденных полигонах
+                    logger.log(Level.FINE, "Не удалось определить ориентацию полигона {0}: {1}", 
+                        new Object[]{polygonInd, e.getMessage()});
                     continue;
                 }
             }
@@ -411,6 +417,7 @@ public class RenderEngine {
             try {
                 normal = normal.normalize();
             } catch (ArithmeticException e) {
+                logger.log(Level.FINE, "Вырожденный полигон: невозможно нормализовать нормаль (нулевой вектор)");
                 return true;
             }
         }
@@ -423,6 +430,7 @@ public class RenderEngine {
         try {
             normalView3 = normalView3.normalize();
         } catch (ArithmeticException e) {
+            logger.log(Level.FINE, "Вырожденная нормаль после трансформации: невозможно нормализовать");
             return true;
         }
         
