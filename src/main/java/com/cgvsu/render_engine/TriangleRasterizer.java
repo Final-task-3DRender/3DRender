@@ -536,7 +536,16 @@ public class TriangleRasterizer {
         } else {
             for (int x = xStart; x <= xEnd; x++) {
                 double t = (double) (x - xStart) / span;
-                float z = (float) (leftZ * (1.0 - t) + rightZ * t);
+                // Perspective-correct interpolation для Z
+                double zOverW = leftZ * leftInvW * (1.0 - t) + rightZ * rightInvW * t;
+                double oneOverW = leftInvW * (1.0 - t) + rightInvW * t;
+                float z;
+                if (Math.abs(oneOverW) > 1e-10) {
+                    z = (float) (zOverW / oneOverW);
+                } else {
+                    // Fallback to linear interpolation if invW is too small
+                    z = (float) (leftZ * (1.0 - t) + rightZ * t);
+                }
                 
                 if (Float.isNaN(z) || Float.isInfinite(z)) {
                     continue;
