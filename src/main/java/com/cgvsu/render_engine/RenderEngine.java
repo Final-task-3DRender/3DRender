@@ -197,8 +197,6 @@ public class RenderEngine {
                 Vector4f homogeneousVertex = new Vector4f(vertex, 1.0f);
                 Vector4f transformed = modelViewProjectionMatrix.multiply(homogeneousVertex);
                 
-                float clipZ = transformed.z;
-                
                 float invW = 0.0f;
                 if (Math.abs(transformed.w) > 1e-7f) {
                     invW = 1.0f / transformed.w;
@@ -207,8 +205,11 @@ public class RenderEngine {
                     invW = 1e7f;
                 }
                 
+                // Используем Z после перспективного деления (NDC координаты) для Z-buffer
+                float ndcZ = transformed.z;
+                
                 transformedVertices.add(transformed);
-                resultZ.add(clipZ);
+                resultZ.add(ndcZ);
                 resultInvW.add(invW);
                 
                 Point2f resultPoint = vertexToPoint(transformed, width, height);
