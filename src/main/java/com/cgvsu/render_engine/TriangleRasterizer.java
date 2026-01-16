@@ -36,11 +36,8 @@ public class TriangleRasterizer {
     
     private static final double MAX_COORD_MULTIPLIER = 50.0;
     
-    // Эпсилоны для проверки деления на w (перспективное деление)
     private static final double INV_W_EPSILON = 1e-7;
     private static final double ONE_OVER_W_EPSILON = 1e-10;
-    
-    // Максимальное количество шагов для растеризации линии
     private static final int MAX_LINE_STEPS = 100000;
     
     /**
@@ -358,8 +355,6 @@ public class TriangleRasterizer {
                     double beta = ((y2 - y0) * px_x2 + (x0 - x2) * py_y2) * invArea;
                     double gamma = 1.0 - alpha - beta;
                     
-                    // Perspective-correct interpolation для Z
-                    // z0, z1, z2 уже в NDC пространстве, нужно восстановить clip space Z
                     double w0 = (Math.abs(invW0) > ONE_OVER_W_EPSILON) ? 1.0 / invW0 : 1.0;
                     double w1 = (Math.abs(invW1) > ONE_OVER_W_EPSILON) ? 1.0 / invW1 : 1.0;
                     double w2 = (Math.abs(invW2) > ONE_OVER_W_EPSILON) ? 1.0 / invW2 : 1.0;
@@ -387,8 +382,6 @@ public class TriangleRasterizer {
                     double beta = ((y2 - y0) * px_x2 + (x0 - x2) * py_y2) * invArea;
                     double gamma = 1.0 - alpha - beta;
                     
-                    // Perspective-correct interpolation для Z
-                    // z0, z1, z2 уже в NDC пространстве, нужно восстановить clip space Z
                     double w0 = (Math.abs(invW0) > ONE_OVER_W_EPSILON) ? 1.0 / invW0 : 1.0;
                     double w1 = (Math.abs(invW1) > ONE_OVER_W_EPSILON) ? 1.0 / invW1 : 1.0;
                     double w2 = (Math.abs(invW2) > ONE_OVER_W_EPSILON) ? 1.0 / invW2 : 1.0;
@@ -516,7 +509,6 @@ public class TriangleRasterizer {
             if (texture != null) {
                 pixelColor = texture.getPixel(leftU, leftV);
             }
-            // Используем unsafe версию, так как координаты уже проверены (xStart и y ограничены)
             if (zBuffer == null || zBuffer.testAndSetUnsafe(xStart, y, leftZ)) {
                 writer.setColor(xStart, y, pixelColor);
             }
@@ -560,24 +552,16 @@ public class TriangleRasterizer {
         } else {
             for (int x = xStart; x <= xEnd; x++) {
                 double t = (double) (x - xStart) / span;
-                // leftZ и rightZ уже вычислены с perspective-correct интерполяцией в rasterizeEdge
-                // и находятся в NDC пространстве. Для интерполяции между ними по X также нужна
-                // perspective-correct интерполяция, так как в экранном пространстве интерполяция нелинейна.
                 double wLeft = (Math.abs(leftInvW) > 1e-10) ? 1.0 / leftInvW : 1.0;
                 double wRight = (Math.abs(rightInvW) > 1e-10) ? 1.0 / rightInvW : 1.0;
-                // Восстанавливаем clip space Z для правильной интерполяции
                 double zClipLeft = leftZ * wLeft;
                 double zClipRight = rightZ * wRight;
-                
-                // Интерполируем в clip space
                 double zClipInterp = zClipLeft * (1.0 - t) + zClipRight * t;
                 double wInterp = wLeft * (1.0 - t) + wRight * t;
                 float z;
                 if (Math.abs(wInterp) > 1e-10) {
-                    // Возвращаемся в NDC пространство
                     z = (float) (zClipInterp / wInterp);
                 } else {
-                    // Fallback to linear interpolation in NDC space if w is too small
                     z = (float) (leftZ * (1.0 - t) + rightZ * t);
                 }
                 
@@ -585,7 +569,7 @@ public class TriangleRasterizer {
                     continue;
                 }
                 
-                // Используем unsafe версию, так как координаты уже проверены (xStart-xEnd и y ограничены)
+ (xStart-xEnd и y ограничены)
                 if (zBuffer.testAndSetUnsafe(x, y, z)) {
                     Color pixelColor;
                     
@@ -671,8 +655,6 @@ public class TriangleRasterizer {
                 double beta = (y2_y0 * px_x2 + x0_x2 * py_y2) * invArea;
                 double gamma = 1.0 - alpha - beta;
 
-                // Perspective-correct interpolation для Z
-                // z0, z1, z2 уже в NDC пространстве, нужно восстановить clip space Z
                 double w0 = (Math.abs(invW0) > 1e-10) ? 1.0 / invW0 : 1.0;
                 double w1 = (Math.abs(invW1) > 1e-10) ? 1.0 / invW1 : 1.0;
                 double w2 = (Math.abs(invW2) > 1e-10) ? 1.0 / invW2 : 1.0;
@@ -693,7 +675,7 @@ public class TriangleRasterizer {
                     continue;
                 }
                 
-                // Используем unsafe версию, так как координаты уже проверены (xStart-xEnd и y ограничены)
+ (xStart-xEnd и y ограничены)
                 if (zBuffer.testAndSetUnsafe(x, y, z)) {
                     Color pixelColor;
                     
@@ -785,8 +767,6 @@ public class TriangleRasterizer {
                     Color c = interpolateColor(c0, c1, t);
                     float z = 0.0f;
                     if (useZ) {
-                        // Perspective-correct interpolation для Z
-                        // z0, z1 уже в NDC пространстве, нужно восстановить clip space Z
                         double w0 = (Math.abs(invW0) > ONE_OVER_W_EPSILON) ? 1.0 / invW0 : 1.0;
                         double w1 = (Math.abs(invW1) > ONE_OVER_W_EPSILON) ? 1.0 / invW1 : 1.0;
                         double zClip0 = z0 * w0;
@@ -870,7 +850,6 @@ public class TriangleRasterizer {
             leftX[idx] = x;
             leftColor[idx] = c;
             if (leftZ != null) {
-                // В нашей системе координат: большее Z = ближе к камере. Берем максимальное Z.
                 leftZ[idx] = (leftZ[idx] == Float.NEGATIVE_INFINITY) ? z : Math.max(leftZ[idx], z);
             }
             if (leftU != null && leftV != null && leftInvW != null) {
@@ -879,7 +858,6 @@ public class TriangleRasterizer {
                     leftV[idx] = v;
                     leftInvW[idx] = invW;
                 } else {
-                    // Обновляем UV только если новая точка ближе (z > leftZ[idx])
                     if (leftZ != null && z > leftZ[idx]) {
                         leftU[idx] = u;
                         leftV[idx] = v;
@@ -892,7 +870,6 @@ public class TriangleRasterizer {
             rightX[idx] = x;
             rightColor[idx] = c;
             if (rightZ != null) {
-                // В нашей системе координат: большее Z = ближе к камере. Берем максимальное Z.
                 rightZ[idx] = (rightZ[idx] == Float.NEGATIVE_INFINITY) ? z : Math.max(rightZ[idx], z);
             }
             if (rightU != null && rightV != null && rightInvW != null) {
@@ -901,7 +878,6 @@ public class TriangleRasterizer {
                     rightV[idx] = v;
                     rightInvW[idx] = invW;
                 } else {
-                    // Обновляем UV только если новая точка ближе (z > rightZ[idx])
                     if (rightZ != null && z > rightZ[idx]) {
                         rightU[idx] = u;
                         rightV[idx] = v;
@@ -1001,7 +977,6 @@ public class TriangleRasterizer {
                     writer.setColor(x0, y0, pixelColor);
                 } else {
                     if (!Float.isNaN(z0) && !Float.isInfinite(z0)) {
-                        // Используем unsafe версию, так как координаты уже проверены
                         if (zBuffer.testAndSetUnsafe(x0, y0, z0)) {
                             writer.setColor(x0, y0, pixelColor);
                         }
@@ -1056,7 +1031,7 @@ public class TriangleRasterizer {
                     }
                     
                     if (!Float.isNaN(z) && !Float.isInfinite(z)) {
-                        // Используем unsafe версию, так как координаты уже проверены в условии if выше
+ в условии if выше
                         if (zBuffer.testAndSetUnsafe(x, y, z)) {
                             writer.setColor(x, y, pixelColor);
                         }

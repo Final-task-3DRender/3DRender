@@ -69,8 +69,6 @@ public class ZBuffer {
             return true;
         }
         
-        // В нашей системе координат: большее Z = ближе к камере
-        // Добавляем небольшой epsilon для учета погрешностей вычислений
         final float EPSILON = 1e-6f;
         if (z > currentZ + EPSILON) {
             buffer[index] = z;
@@ -102,8 +100,6 @@ public class ZBuffer {
             return true;
         }
         
-        // В нашей системе координат: большее Z = ближе к камере
-        // Добавляем небольшой epsilon для учета погрешностей вычислений
         final float EPSILON = 1e-6f;
         if (z > currentZ + EPSILON) {
             buffer[index] = z;
