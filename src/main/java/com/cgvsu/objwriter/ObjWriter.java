@@ -8,6 +8,7 @@ import com.cgvsu.model.Polygon;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -47,9 +48,9 @@ public class ObjWriter {
         try (FileWriter fileWriter = new FileWriter(filename)) {
             writeHeader(fileWriter, model);
 
-            writeVertices(fileWriter, model.vertices);
-            writeTextureCoordinates(fileWriter, model.textureVertices);
-            writeNormals(fileWriter, model.normals);
+            writeVertices(fileWriter, model.getVertices());
+            writeTextureCoordinates(fileWriter, model.getTextureVertices());
+            writeNormals(fileWriter, model.getNormals());
 
             writePolygons(fileWriter, model);
         }
@@ -64,10 +65,10 @@ public class ObjWriter {
      */
     private static void writeHeader(FileWriter writer, Model model) throws IOException {
         writer.write("# Created by ObjWriter\n");
-        writer.write("# Vertices: " + model.vertices.size() + "\n");
-        writer.write("# Texture coordinates: " + model.textureVertices.size() + "\n");
-        writer.write("# Normals: " + model.normals.size() + "\n");
-        writer.write("# Polygons: " + model.polygons.size() + "\n\n");
+        writer.write("# Vertices: " + model.getVertexCount() + "\n");
+        writer.write("# Texture coordinates: " + model.getTextureVertexCount() + "\n");
+        writer.write("# Normals: " + model.getNormalCount() + "\n");
+        writer.write("# Polygons: " + model.getPolygonCount() + "\n\n");
     }
 
     /**
@@ -77,7 +78,7 @@ public class ObjWriter {
      * @param vertices список вершин для записи
      * @throws IOException если произошла ошибка записи
      */
-    private static void writeVertices(FileWriter writer, ArrayList<Vector3f> vertices) throws IOException {
+    private static void writeVertices(FileWriter writer, List<Vector3f> vertices) throws IOException {
         for (Vector3f v : vertices) {
             writer.write(String.format(Locale.US, "v %.6f %.6f %.6f\n", v.x, v.y, v.z));
         }
@@ -91,7 +92,7 @@ public class ObjWriter {
      * @param textures список текстурных координат для записи
      * @throws IOException если произошла ошибка записи
      */
-    private static void writeTextureCoordinates(FileWriter writer, ArrayList<Vector2f> textures) throws IOException {
+    private static void writeTextureCoordinates(FileWriter writer, List<Vector2f> textures) throws IOException {
         for (Vector2f uv : textures) {
             writer.write(String.format(Locale.US, "vt %.6f %.6f\n", uv.x, uv.y));
         }
@@ -105,7 +106,7 @@ public class ObjWriter {
      * @param normals список нормалей для записи
      * @throws IOException если произошла ошибка записи
      */
-    private static void writeNormals(FileWriter writer, ArrayList<Vector3f> normals) throws IOException {
+    private static void writeNormals(FileWriter writer, List<Vector3f> normals) throws IOException {
         for (Vector3f n : normals) {
             writer.write(String.format(Locale.US, "vn %.6f %.6f %.6f\n", n.x, n.y, n.z));
         }
@@ -123,8 +124,8 @@ public class ObjWriter {
      * @throws IOException если произошла ошибка записи или полигон невалиден
      */
     private static void writePolygons(FileWriter writer, Model model) throws IOException {
-        for (int i = 0; i < model.polygons.size(); i++) {
-            Polygon polygon = model.polygons.get(i);
+        for (int i = 0; i < model.getPolygonCount(); i++) {
+            Polygon polygon = model.getPolygon(i);
 
             if (polygon == null) {
                 throw new IOException("Polygon " + i + " is invalid");
@@ -135,7 +136,7 @@ public class ObjWriter {
             ArrayList<Integer> nIndices = polygon.getNormalIndices();
 
             validatePolygon(i, vIndices, tIndices, nIndices,
-                    model.vertices.size(), model.textureVertices.size(), model.normals.size());
+                    model.getVertexCount(), model.getTextureVertexCount(), model.getNormalCount());
 
             writer.write(constructPolygonString(vIndices, tIndices, nIndices) + "\n");
         }
@@ -200,7 +201,7 @@ public class ObjWriter {
      * @param maxValue максимальное допустимое значение индекса
      * @throws IOException если какой-либо индекс выходит за границы [0, maxValue)
      */
-    private static void validateIndexRange(int polygonIndex, ArrayList<Integer> indices,
+    private static void validateIndexRange(int polygonIndex, List<Integer> indices,
                                            String type, int maxValue) throws IOException {
         for (int i = 0; i < indices.size(); i++) {
             int idx = indices.get(i);
@@ -222,9 +223,9 @@ public class ObjWriter {
      * @param nIndices индексы нормалей (может быть null или пустым)
      * @return строка полигона в формате OBJ
      */
-    private static String constructPolygonString(ArrayList<Integer> vIndices,
-                                                 ArrayList<Integer> tIndices,
-                                                 ArrayList<Integer> nIndices) {
+    private static String constructPolygonString(List<Integer> vIndices,
+                                                 List<Integer> tIndices,
+                                                 List<Integer> nIndices) {
 
         StringBuilder polygonBuilder = new StringBuilder("f");
 

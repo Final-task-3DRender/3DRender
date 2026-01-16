@@ -49,13 +49,13 @@ class SimpleTriangulatorTest {
     @Test
     void testTriangulationAllTriangles() {
         simpleTriangulator.triangulateModel(cubeModel);
-        for (Polygon polygon : cubeModel.polygons) {
+        for (Polygon polygon : cubeModel.getPolygons()) {
             Assertions.assertEquals(3, polygon.getVertexIndices().size(),
                 "All polygons should be triangles after triangulation");
         }
         
         simpleTriangulator.triangulateModel(oneSimplePolygonModel);
-        for (Polygon polygon : oneSimplePolygonModel.polygons) {
+        for (Polygon polygon : oneSimplePolygonModel.getPolygons()) {
             Assertions.assertEquals(3, polygon.getVertexIndices().size(),
                 "All polygons should be triangles after triangulation");
         }
@@ -65,51 +65,46 @@ class SimpleTriangulatorTest {
     void testTriangulatedModelTextures() {
         Model model1 = simpleTriangulator.createTriangulatedModel(cubeModel);
         Model model2 = simpleTriangulator.createTriangulatedModel(oneSimplePolygonModel);
-        Assertions.assertEquals(cubeModel.textureVertices, model1.textureVertices);
-        Assertions.assertEquals(oneSimplePolygonModel.textureVertices, model2.textureVertices);
+        Assertions.assertEquals(cubeModel.getTextureVertices(), model1.getTextureVertices());
+        Assertions.assertEquals(oneSimplePolygonModel.getTextureVertices(), model2.getTextureVertices());
     }
     
     @Test
     void testTriangulatedModelNormals() {
         Model model1 = simpleTriangulator.createTriangulatedModel(cubeModel);
         Model model2 = simpleTriangulator.createTriangulatedModel(oneSimplePolygonModel);
-        Assertions.assertEquals(cubeModel.normals, model1.normals);
-        Assertions.assertEquals(oneSimplePolygonModel.normals, model2.normals);
+        Assertions.assertEquals(cubeModel.getNormals(), model1.getNormals());
+        Assertions.assertEquals(oneSimplePolygonModel.getNormals(), model2.getNormals());
     }
     
     @Test
     void testTriangulatedModelChange() {
         Model model = simpleTriangulator.createTriangulatedModel(cubeModel);
-        Assertions.assertEquals(cubeModel.normals, model.normals);
-        Assertions.assertEquals(cubeModel.textureVertices, model.textureVertices);
+        Assertions.assertEquals(cubeModel.getNormals(), model.getNormals());
+        Assertions.assertEquals(cubeModel.getTextureVertices(), model.getTextureVertices());
         
         // Изменяем модель после триангуляции
-        model.normals.add(new com.cgvsu.math.Vector3f(5, 4, 3));
-        model.textureVertices.add(new com.cgvsu.math.Vector2f(1, 1));
+        model.addNormal(new com.cgvsu.math.Vector3f(5, 4, 3));
+        model.addTextureVertex(new com.cgvsu.math.Vector2f(1, 1));
         
         // Исходная модель не должна измениться
-        Assertions.assertNotEquals(cubeModel.normals.size(), model.normals.size());
-        Assertions.assertNotEquals(cubeModel.textureVertices.size(), model.textureVertices.size());
+        Assertions.assertNotEquals(cubeModel.getNormalCount(), model.getNormalCount());
+        Assertions.assertNotEquals(cubeModel.getTextureVertexCount(), model.getTextureVertexCount());
     }
     
     @Test
     void testTriangulateEmptyModel() {
         Model emptyModel = new Model();
-        emptyModel.vertices = new ArrayList<>();
-        emptyModel.textureVertices = new ArrayList<>();
-        emptyModel.normals = new ArrayList<>();
-        emptyModel.polygons = new ArrayList<>();
         
         Assertions.assertDoesNotThrow(() -> simpleTriangulator.triangulateModel(emptyModel));
-        Assertions.assertTrue(emptyModel.polygons.isEmpty());
+        Assertions.assertEquals(0, emptyModel.getPolygonCount());
     }
     
     @Test
     void testTriangulatePolygon_LessThanThreeVertices() {
         Model model = new Model();
-        model.vertices.add(new com.cgvsu.math.Vector3f(0, 0, 0));
-        model.vertices.add(new com.cgvsu.math.Vector3f(1, 0, 0));
-        model.polygons = new ArrayList<>();
+        model.addVertex(new com.cgvsu.math.Vector3f(0, 0, 0));
+        model.addVertex(new com.cgvsu.math.Vector3f(1, 0, 0));
         
         Polygon polygon = new Polygon();
         // Создаем полигон с 3 вершинами для теста (полигон с < 3 вершинами не поддерживается Polygon.setVertexIndices)
@@ -125,10 +120,9 @@ class SimpleTriangulatorTest {
     @Test
     void testTriangulatePolygon_ThreeVertices() {
         Model model = new Model();
-        model.vertices.add(new com.cgvsu.math.Vector3f(0, 0, 0));
-        model.vertices.add(new com.cgvsu.math.Vector3f(1, 0, 0));
-        model.vertices.add(new com.cgvsu.math.Vector3f(0, 1, 0));
-        model.polygons = new ArrayList<>();
+        model.addVertex(new com.cgvsu.math.Vector3f(0, 0, 0));
+        model.addVertex(new com.cgvsu.math.Vector3f(1, 0, 0));
+        model.addVertex(new com.cgvsu.math.Vector3f(0, 1, 0));
         
         Polygon polygon = new Polygon();
         polygon.setVertexIndices(new ArrayList<>(java.util.Arrays.asList(0, 1, 2)));
@@ -142,11 +136,10 @@ class SimpleTriangulatorTest {
     @Test
     void testTriangulatePolygon_FourVertices() {
         Model model = new Model();
-        model.vertices.add(new com.cgvsu.math.Vector3f(0, 0, 0));
-        model.vertices.add(new com.cgvsu.math.Vector3f(1, 0, 0));
-        model.vertices.add(new com.cgvsu.math.Vector3f(1, 1, 0));
-        model.vertices.add(new com.cgvsu.math.Vector3f(0, 1, 0));
-        model.polygons = new ArrayList<>();
+        model.addVertex(new com.cgvsu.math.Vector3f(0, 0, 0));
+        model.addVertex(new com.cgvsu.math.Vector3f(1, 0, 0));
+        model.addVertex(new com.cgvsu.math.Vector3f(1, 1, 0));
+        model.addVertex(new com.cgvsu.math.Vector3f(0, 1, 0));
         
         Polygon polygon = new Polygon();
         polygon.setVertexIndices(new ArrayList<>(java.util.Arrays.asList(0, 1, 2, 3)));
@@ -163,9 +156,8 @@ class SimpleTriangulatorTest {
     void testTriangulatePolygon_FiveVertices() {
         Model model = new Model();
         for (int i = 0; i < 5; i++) {
-            model.vertices.add(new com.cgvsu.math.Vector3f(i, 0, 0));
+            model.addVertex(new com.cgvsu.math.Vector3f(i, 0, 0));
         }
-        model.polygons = new ArrayList<>();
         
         Polygon polygon = new Polygon();
         polygon.setVertexIndices(new ArrayList<>(java.util.Arrays.asList(0, 1, 2, 3, 4)));
@@ -180,9 +172,9 @@ class SimpleTriangulatorTest {
     
     @Test
     void testTriangulationPreservesVertexCount() {
-        int originalVertexCount = cubeModel.vertices.size();
+        int originalVertexCount = cubeModel.getVertexCount();
         simpleTriangulator.triangulateModel(cubeModel);
-        Assertions.assertEquals(originalVertexCount, cubeModel.vertices.size(),
+        Assertions.assertEquals(originalVertexCount, cubeModel.getVertexCount(),
             "Triangulation should not change vertex count");
     }
 }

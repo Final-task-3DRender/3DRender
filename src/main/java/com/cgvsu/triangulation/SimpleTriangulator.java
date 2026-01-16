@@ -33,8 +33,8 @@ public class SimpleTriangulator implements Triangulator {
         if (polygon == null) {
             throw new IllegalArgumentException("Polygon cannot be null");
         }
-        if (model.vertices == null) {
-            throw new IllegalArgumentException("Model vertices list cannot be null");
+        if (model.getVertexCount() == 0) {
+            throw new IllegalArgumentException("Model must have at least one vertex");
         }
         
         ArrayList<Integer> verticesIndexes = polygon.getVertexIndices();

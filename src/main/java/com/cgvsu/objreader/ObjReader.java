@@ -45,10 +45,10 @@ public class ObjReader {
 				wordsInLine.remove(0);
 
 				switch (token) {
-					case OBJ_VERTEX_TOKEN -> result.vertices.add(parseVertex(wordsInLine, lineInd));
-					case OBJ_TEXTURE_TOKEN -> result.textureVertices.add(parseTextureVertex(wordsInLine, lineInd));
-					case OBJ_NORMAL_TOKEN -> result.normals.add(parseNormal(wordsInLine, lineInd));
-					case OBJ_FACE_TOKEN -> result.polygons.add(parseFace(wordsInLine, lineInd, result));
+					case OBJ_VERTEX_TOKEN -> result.addVertex(parseVertex(wordsInLine, lineInd));
+					case OBJ_TEXTURE_TOKEN -> result.addTextureVertex(parseTextureVertex(wordsInLine, lineInd));
+					case OBJ_NORMAL_TOKEN -> result.addNormal(parseNormal(wordsInLine, lineInd));
+					case OBJ_FACE_TOKEN -> result.addPolygon(parseFace(wordsInLine, lineInd, result));
 					default -> {}
 				}
 			}
@@ -60,10 +60,10 @@ public class ObjReader {
 	}
 
 	private static void validateModel(Model model) {
-		if (model.vertices.isEmpty()) {
+		if (model.getVertexCount() == 0) {
 			throw new ObjReaderException("В модели нет вершин.", 0);
 		}
-		if (model.polygons.isEmpty()) {
+		if (model.getPolygonCount() == 0) {
 			throw new ObjReaderException("В модели нет полигонов.", 0);
 		}
 	}
@@ -230,7 +230,7 @@ public class ObjReader {
 				throw new ObjReaderException("Отсутствует индекс вершины в определении полигона.", lineInd);
 			}
 			
-			int vertexIndex = parseIndex(wordIndices[0], model.vertices.size(), "vertex", lineInd);
+			int vertexIndex = parseIndex(wordIndices[0], model.getVertexCount(), "vertex", lineInd);
 			onePolygonVertexIndices.add(vertexIndex);
 			
 			switch (wordIndices.length) {
@@ -238,17 +238,17 @@ public class ObjReader {
 				}
 				case 2 -> {
 					if (!wordIndices[1].isEmpty()) {
-						int textureIndex = parseIndex(wordIndices[1], model.textureVertices.size(), "texture vertex", lineInd);
+						int textureIndex = parseIndex(wordIndices[1], model.getTextureVertexCount(), "texture vertex", lineInd);
 						onePolygonTextureVertexIndices.add(textureIndex);
 					}
 				}
 				case 3 -> {
 					if (!wordIndices[1].isEmpty()) {
-						int textureIndex = parseIndex(wordIndices[1], model.textureVertices.size(), "texture vertex", lineInd);
+						int textureIndex = parseIndex(wordIndices[1], model.getTextureVertexCount(), "texture vertex", lineInd);
 						onePolygonTextureVertexIndices.add(textureIndex);
 					}
 					if (!wordIndices[2].isEmpty()) {
-						int normalIndex = parseIndex(wordIndices[2], model.normals.size(), "normal", lineInd);
+						int normalIndex = parseIndex(wordIndices[2], model.getNormalCount(), "normal", lineInd);
 						onePolygonNormalIndices.add(normalIndex);
 					}
 				}

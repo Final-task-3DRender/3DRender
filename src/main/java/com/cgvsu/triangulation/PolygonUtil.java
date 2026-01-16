@@ -106,9 +106,9 @@ public class PolygonUtil {
             throw new IllegalArgumentException("Method works only with triangles. Given polygon vertices count: " + vertexIndices.size());
         }
         
-        Vector3f v0 = model.vertices.get(vertexIndices.get(0));
-        Vector3f v1 = model.vertices.get(vertexIndices.get(1));
-        Vector3f v2 = model.vertices.get(vertexIndices.get(2));
+        Vector3f v0 = model.getVertex(vertexIndices.get(0));
+        Vector3f v1 = model.getVertex(vertexIndices.get(1));
+        Vector3f v2 = model.getVertex(vertexIndices.get(2));
         
         Vector3f first = new Vector3f(
                 v0.x - v1.x,
