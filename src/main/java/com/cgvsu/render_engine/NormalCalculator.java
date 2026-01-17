@@ -8,9 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Вычисление нормалей для полигонов и вершин моделей.
- */
 public class NormalCalculator {
     
     public static void recalculateNormals(Model model) {
@@ -47,37 +44,29 @@ public class NormalCalculator {
                 continue;
             }
             
-            Vector3f edge1 = v1.subtract(v0);
-            Vector3f edge2 = v2.subtract(v0);
-            
-            Vector3f polygonNormal = edge1.cross(edge2);
-            
-            try {
-                polygonNormal = polygonNormal.normalize();
-            } catch (ArithmeticException e) {
-                polygonNormal = new Vector3f(0, 0, 1);
-            }
-            
-            int normalIndex = model.getNormalCount();
-            model.addNormal(polygonNormal);
-            
-            ArrayList<Integer> normalIndices = new ArrayList<>();
-            for (int i = 0; i < vertexIndices.size(); i++) {
-                normalIndices.add(normalIndex);
-            }
-            polygon.setNormalIndices(normalIndices);
+            Vector3f polygonNormal = v1.subtract(v0).cross(v2.subtract(v0)).normalize();
             
             for (Integer vertexIndex : vertexIndices) {
                 vertexNormals.merge(vertexIndex, polygonNormal, Vector3f::add);
             }
         }
         
+        Map<Integer, Integer> vertexNormalIndexMap = new HashMap<>();
         for (Map.Entry<Integer, Vector3f> entry : vertexNormals.entrySet()) {
-            try {
-                vertexNormals.put(entry.getKey(), entry.getValue().normalize());
-            } catch (ArithmeticException e) {
-                vertexNormals.put(entry.getKey(), new Vector3f(0, 0, 1));
+            int normalIndex = model.getNormalCount();
+            model.addNormal(entry.getValue().normalize());
+            vertexNormalIndexMap.put(entry.getKey(), normalIndex);
+        }
+        
+        for (Polygon polygon : model.getPolygons()) {
+            ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
+            ArrayList<Integer> normalIndices = new ArrayList<>();
+            
+            for (Integer vertexIndex : vertexIndices) {
+                normalIndices.add(vertexNormalIndexMap.get(vertexIndex));
             }
+            
+            polygon.setNormalIndices(normalIndices);
         }
     }
     

@@ -1,5 +1,6 @@
 package com.cgvsu.render_engine;
 
+import com.cgvsu.math.Vector3f;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.paint.Color;
@@ -57,6 +58,24 @@ public class TriangleRasterizer {
             double x2, double y2, float z2, float invW2, float u2, float v2,
             Color c2
     ) {
+        fillTriangle(gc, zBuffer, texture, x0, y0, z0, invW0, u0, v0, c0,
+                     x1, y1, z1, invW1, u1, v1, c1,
+                     x2, y2, z2, invW2, u2, v2, c2, null, null);
+    }
+    
+    public static void fillTriangle(
+            GraphicsContext gc,
+            ZBuffer zBuffer,
+            Texture texture,
+            double x0, double y0, float z0, float invW0, float u0, float v0,
+            Color c0,
+            double x1, double y1, float z1, float invW1, float u1, float v1,
+            Color c1,
+            double x2, double y2, float z2, float invW2, float u2, float v2,
+            Color c2,
+            float[] normals,
+            RenderSettings settings
+    ) {
         PixelWriter writer = gc.getPixelWriter();
         if (writer == null) return;
 
@@ -109,7 +128,7 @@ public class TriangleRasterizer {
         rasterizeTriangle(writer, zBuffer, texture, x0, y0, z0, invW0, u0, v0, c0, 
                           x1, y1, z1, invW1, u1, v1, c1, 
                           x2, y2, z2, invW2, u2, v2, c2,
-                         triangleArea, minY, maxY, width, height);
+                         triangleArea, minY, maxY, width, height, normals, settings);
     }
 
     private static boolean validateCoordinates(
@@ -159,7 +178,9 @@ public class TriangleRasterizer {
             double x2, double y2, float z2, float invW2, float u2, float v2, Color c2,
             double triangleArea,
             int minY, int maxY,
-            int width, int height) {
+            int width, int height,
+            float[] normals,
+            RenderSettings settings) {
         
         int rows = maxY - minY + 1;
         
@@ -224,7 +245,7 @@ public class TriangleRasterizer {
                          x2, y2, z2, invW2, u2, v2, c2,
                          leftX, rightX, leftColor, rightColor, leftZ, rightZ,
                          leftU, leftV, rightU, rightV, leftInvW, rightInvW,
-                         triangleArea, minY, maxY, width, height);
+                         triangleArea, minY, maxY, width, height, normals, settings);
     }
 
     private static void fillTriangleRows(
@@ -241,7 +262,9 @@ public class TriangleRasterizer {
             float[] leftInvW, float[] rightInvW,
             double triangleArea,
             int minY, int maxY,
-            int width, int height) {
+            int width, int height,
+            float[] normals,
+            RenderSettings settings) {
         
         for (int y = minY; y <= maxY; y++) {
             int idx = y - minY;
@@ -393,13 +416,13 @@ public class TriangleRasterizer {
                            leftZVal, rightZVal,
                            leftUVal, leftVVal, rightUVal, rightVVal,
                            leftInvWVal, rightInvWVal,
-                           c0, c1);
+                           c0, c1, x0, y0, x1, y1, x2, y2, triangleArea, normals, settings);
             } else {
                 fillRowPrecise(writer, zBuffer, texture, xStart, xEnd, y,
                               x0, y0, z0, invW0, u0, v0, c0, 
                               x1, y1, z1, invW1, u1, v1, c1, 
                               x2, y2, z2, invW2, u2, v2, c2, 
-                              triangleArea);
+                              triangleArea, normals, settings);
             }
         }
     }
@@ -418,7 +441,11 @@ public class TriangleRasterizer {
             float leftZ, float rightZ,
             float leftU, float leftV, float rightU, float rightV,
             float leftInvW, float rightInvW,
-            Color defaultC0, Color defaultC1) {
+            Color defaultC0, Color defaultC1,
+            double x0, double y0, double x1, double y1, double x2, double y2,
+            double triangleArea,
+            float[] normals,
+            RenderSettings settings) {
         
         Color leftColor = (leftC != null) ? leftC : defaultC0;
         Color rightColor = (rightC != null) ? rightC : defaultC1;
@@ -429,6 +456,19 @@ public class TriangleRasterizer {
             if (texture != null) {
                 pixelColor = texture.getPixel(leftU, leftV);
             }
+            
+            if (settings != null && settings.isEnableLighting() && normals != null && normals.length >= 9) {
+                double invArea = 1.0 / triangleArea;
+                double px_x2 = xStart - x2;
+                double py_y2 = y - y2;
+                double alpha = ((y1 - y2) * px_x2 + (x2 - x1) * py_y2) * invArea;
+                double beta = ((y2 - y0) * px_x2 + (x0 - x2) * py_y2) * invArea;
+                double gamma = 1.0 - alpha - beta;
+                
+                Vector3f normal = SimpleLighting.interpolate(normals, alpha, beta, gamma);
+                pixelColor = SimpleLighting.apply(pixelColor, normal, settings.getLightDirection(), settings.getLightingCoefficient());
+            }
+            
             if (zBuffer == null || zBuffer.testAndSetUnsafe(xStart, y, leftZ)) {
                 writer.setColor(xStart, y, pixelColor);
             }
@@ -441,6 +481,13 @@ public class TriangleRasterizer {
         double rightR = rightColor.getRed();
         double rightG = rightColor.getGreen();
         double rightB = rightColor.getBlue();
+        
+        double invArea = (Math.abs(triangleArea) > 1e-8) ? 1.0 / triangleArea : 1.0;
+        double y1_y2 = y1 - y2;
+        double y2_y0 = y2 - y0;
+        double x2_x1 = x2 - x1;
+        double x0_x2 = x0 - x2;
+        double py_y2 = y - y2;
         
         if (zBuffer == null) {
             for (int x = xStart; x <= xEnd; x++) {
@@ -465,6 +512,16 @@ public class TriangleRasterizer {
                     double g = leftG * (1.0 - t) + rightG * t;
                     double b = leftB * (1.0 - t) + rightB * t;
                     pixelColor = new Color(r, g, b, 1.0);
+                }
+                
+                if (settings != null && settings.isEnableLighting() && normals != null && normals.length >= 9) {
+                    double px_x2 = x - x2;
+                    double alpha = (y1_y2 * px_x2 + x2_x1 * py_y2) * invArea;
+                    double beta = (y2_y0 * px_x2 + x0_x2 * py_y2) * invArea;
+                    double gamma = 1.0 - alpha - beta;
+                    
+                    Vector3f normal = SimpleLighting.interpolate(normals, alpha, beta, gamma);
+                    pixelColor = SimpleLighting.apply(pixelColor, normal, settings.getLightDirection(), settings.getLightingCoefficient());
                 }
                 
                 writer.setColor(x, y, pixelColor);
@@ -512,6 +569,16 @@ public class TriangleRasterizer {
                         pixelColor = new Color(r, g, b, 1.0);
                     }
                     
+                    if (settings != null && settings.isEnableLighting() && normals != null && normals.length >= 9) {
+                        double px_x2 = x - x2;
+                        double alpha = (y1_y2 * px_x2 + x2_x1 * py_y2) * invArea;
+                        double beta = (y2_y0 * px_x2 + x0_x2 * py_y2) * invArea;
+                        double gamma = 1.0 - alpha - beta;
+                        
+                        Vector3f normal = SimpleLighting.interpolate(normals, alpha, beta, gamma);
+                        pixelColor = SimpleLighting.apply(pixelColor, normal, settings.getLightDirection(), settings.getLightingCoefficient());
+                    }
+                    
                     writer.setColor(x, y, pixelColor);
                 }
             }
@@ -526,7 +593,9 @@ public class TriangleRasterizer {
             double x0, double y0, float z0, float invW0, float u0, float v0, Color c0,
             double x1, double y1, float z1, float invW1, float u1, float v1, Color c1,
             double x2, double y2, float z2, float invW2, float u2, float v2, Color c2,
-            double triangleArea) {
+            double triangleArea,
+            float[] normals,
+            RenderSettings settings) {
         
         double c0r = c0.getRed();
         double c0g = c0.getGreen();
@@ -561,7 +630,14 @@ public class TriangleRasterizer {
                 g = Math.max(0.0, Math.min(1.0, g));
                 b = Math.max(0.0, Math.min(1.0, b));
 
-                writer.setColor(x, y, new Color(r, g, b, 1.0));
+                Color pixelColor = new Color(r, g, b, 1.0);
+                
+                if (settings != null && settings.isEnableLighting() && normals != null && normals.length >= 9) {
+                    Vector3f normal = SimpleLighting.interpolate(normals, alpha, beta, gamma);
+                    pixelColor = SimpleLighting.apply(pixelColor, normal, settings.getLightDirection(), settings.getLightingCoefficient());
+                }
+                
+                writer.setColor(x, y, pixelColor);
             }
         } else {
             for (int x = xStart; x <= xEnd; x++) {
@@ -616,6 +692,11 @@ public class TriangleRasterizer {
                         b = Math.max(0.0, Math.min(1.0, b));
 
                         pixelColor = new Color(r, g, b, 1.0);
+                    }
+                    
+                    if (settings != null && settings.isEnableLighting() && normals != null && normals.length >= 9) {
+                        Vector3f normal = SimpleLighting.interpolate(normals, alpha, beta, gamma);
+                        pixelColor = SimpleLighting.apply(pixelColor, normal, settings.getLightDirection(), settings.getLightingCoefficient());
                     }
 
                     writer.setColor(x, y, pixelColor);

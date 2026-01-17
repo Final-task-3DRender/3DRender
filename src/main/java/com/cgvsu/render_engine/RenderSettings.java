@@ -1,5 +1,6 @@
 package com.cgvsu.render_engine;
 
+import com.cgvsu.math.Vector3f;
 import javafx.scene.paint.Color;
 
 /**
@@ -46,6 +47,10 @@ public class RenderSettings {
     private Texture texture = null;
     private boolean enableTriangulation = true;
     private boolean enableRasterization = true;
+
+    private boolean enableLighting = true;
+    private Vector3f lightDirection = new Vector3f(0.57735f, 0.57735f, -0.57735f);
+    private float lightingCoefficient = 0.7f;
 
     /**
      * Создает настройки рендеринга со значениями по умолчанию.
@@ -246,5 +251,29 @@ public class RenderSettings {
      */
     public void setEnableRasterization(boolean enableRasterization) {
         this.enableRasterization = enableRasterization;
+    }
+    
+    public boolean isEnableLighting() {
+        return enableLighting;
+    }
+    
+    public void setEnableLighting(boolean enableLighting) {
+        this.enableLighting = enableLighting;
+    }
+    
+    public Vector3f getLightDirection() {
+        return lightDirection;
+    }
+    
+    public void setLightDirection(Vector3f lightDirection) {
+        this.lightDirection = lightDirection != null ? lightDirection.normalize() : new Vector3f(0, 0, -1);
+    }
+    
+    public float getLightingCoefficient() {
+        return lightingCoefficient;
+    }
+    
+    public void setLightingCoefficient(float lightingCoefficient) {
+        this.lightingCoefficient = lightingCoefficient;
     }
 }

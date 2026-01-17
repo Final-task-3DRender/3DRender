@@ -332,7 +332,10 @@ public class RenderEngine {
                     triInvW.add(resultInvW.get(idx1));
                     triInvW.add(resultInvW.get(idx2));
                     
-                    renderTriangle(graphicsContext, zBuffer, settings, triPoints, triZ, triInvW, uv, triangleColor, wireframeColor);
+                    int[] triVertexIndicesForNormals = {idx0, idx1, idx2};
+                    float[] normals = getVertexNormals(mesh, triangle, triVertexIndicesForNormals, modelMatrix);
+                    
+                    renderTriangle(graphicsContext, zBuffer, settings, triPoints, triZ, triInvW, uv, triangleColor, wireframeColor, normals);
                 }
                 continue;
             }
@@ -342,7 +345,9 @@ public class RenderEngine {
                 int[] vertexIndices = {0, 1, 2};
                 float[] uv = getUVCoordinates(mesh, polygon, textureIndices, vertexIndices);
                 
-                renderTriangle(graphicsContext, zBuffer, settings, resultPoints, resultZ, resultInvW, uv, triangleColor, wireframeColor);
+                float[] normals = getVertexNormals(mesh, polygon, vertexIndices, modelMatrix);
+                
+                renderTriangle(graphicsContext, zBuffer, settings, resultPoints, resultZ, resultInvW, uv, triangleColor, wireframeColor, normals);
             } else {
                 ArrayList<Integer> textureIndices = polygon.getTextureVertexIndices();
                 
@@ -363,7 +368,9 @@ public class RenderEngine {
                     triInvW.add(resultInvW.get(vertexInPolygonInd));
                     triInvW.add(resultInvW.get(vertexInPolygonInd + 1));
                     
-                    renderTriangle(graphicsContext, zBuffer, settings, triPoints, triZ, triInvW, uv, triangleColor, wireframeColor);
+                    float[] normals = getVertexNormals(mesh, polygon, triVertexIndices, modelMatrix);
+                    
+                    renderTriangle(graphicsContext, zBuffer, settings, triPoints, triZ, triInvW, uv, triangleColor, wireframeColor, normals);
                 }
                 
                 if (settings.isShowWireframe()) {
@@ -408,6 +415,25 @@ public class RenderEngine {
         return uv;
     }
     
+    private static float[] getVertexNormals(Model mesh, Polygon polygon, int[] vertexIndices, Matrix4f modelMatrix) {
+        ArrayList<Integer> normalIndices = polygon.getNormalIndices();
+        if (normalIndices == null || normalIndices.isEmpty()) return null;
+        
+        float[] normals = new float[9];
+        for (int i = 0; i < 3; i++) {
+            if (vertexIndices[i] >= normalIndices.size()) return null;
+            int normalIdx = normalIndices.get(vertexIndices[i]);
+            Vector3f normal = mesh.getNormal(normalIdx);
+            Vector4f normal4 = new Vector4f(normal, 0.0f);
+            Vector4f transformed = modelMatrix.multiply(normal4);
+            Vector3f normalWorld = new Vector3f(transformed.x, transformed.y, transformed.z).normalize();
+            normals[i * 3] = normalWorld.x;
+            normals[i * 3 + 1] = normalWorld.y;
+            normals[i * 3 + 2] = normalWorld.z;
+        }
+        return normals;
+    }
+    
     private static void drawWireframeTriangle(
             GraphicsContext graphicsContext,
             Color wireframeColor,
@@ -446,7 +472,8 @@ public class RenderEngine {
             ArrayList<Float> resultInvW,
             float[] uv,
             Color triangleColor,
-            Color wireframeColor) {
+            Color wireframeColor,
+            float[] normals) {
         
         Texture texture = settings.isUseTexture() ? settings.getTexture() : null;
         
@@ -460,7 +487,9 @@ public class RenderEngine {
                 resultPoints.get(1).x, resultPoints.get(1).y, resultZ.get(1), resultInvW.get(1), 
                 uv[2], uv[3], triangleColor,
                 resultPoints.get(2).x, resultPoints.get(2).y, resultZ.get(2), resultInvW.get(2), 
-                uv[4], uv[5], triangleColor
+                uv[4], uv[5], triangleColor,
+                normals,
+                settings
             );
         }
         
