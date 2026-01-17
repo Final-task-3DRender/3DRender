@@ -63,26 +63,10 @@ import com.cgvsu.removers.VertexRemover;
 import com.cgvsu.math.Vector4f;
 import com.cgvsu.math.Point2f;
 import com.cgvsu.model.Polygon;
-import com.cgvsu.triangulation.EarCuttingTriangulator;
-import com.cgvsu.triangulation.Triangulator;
 import static com.cgvsu.render_engine.GraphicConveyor.vertexToPoint;
 
 /**
- * Главный контроллер JavaFX приложения для просмотра и редактирования 3D моделей.
- * 
- * <p>Координирует работу всех компонентов приложения:
- * <ul>
- *   <li>Управление моделями в сцене (загрузка, сохранение, выбор)</li>
- *   <li>Трансформации моделей (позиция, вращение, масштаб)</li>
- *   <li>Управление камерой (мышь и клавиатура)</li>
- *   <li>Настройки рендеринга (wireframe, filled, текстуры, Z-buffer)</li>
- *   <li>Цикл рендеринга (анимация)</li>
- * </ul>
- * 
- * <p>Использует FXML для описания интерфейса (gui.fxml).
- * 
- * @author CGVSU Team
- * @version 1.0
+ * Главный контроллер приложения для работы с 3D моделями.
  */
 public class GuiController {
     
@@ -273,11 +257,6 @@ public class GuiController {
         updateTransformUI();
     }
 
-    /**
-     * Настраивает UI для управления трансформациями модели.
-     * 
-     * <p>Инициализирует ModelTransformController с UI элементами.
-     */
     private void setupTransformUI() {
         transformController = new ModelTransformController(
             positionXField, positionYField, positionZField,
@@ -302,21 +281,11 @@ public class GuiController {
         }
     }
 
-    /**
-     * Возвращает трансформации текущей выбранной модели.
-     * 
-     * @return трансформации модели или null, если модель не выбрана
-     */
     private ModelTransform getCurrentTransform() {
         SceneModel current = getSelectedSceneModel();
         return current != null ? current.getTransform() : null;
     }
 
-    /**
-     * Возвращает текущую выбранную модель в сцене.
-     * 
-     * @return выбранная модель или null, если модель не выбрана
-     */
     private SceneModel getSelectedSceneModel() {
         if (selectedModelIndex < 0 || selectedModelIndex >= sceneModels.size()) {
             return null;
@@ -324,9 +293,6 @@ public class GuiController {
         return sceneModels.get(selectedModelIndex);
     }
 
-    /**
-     * Обновляет UI трансформаций и информацию о сцене.
-     */
     private void updateTransformUI() {
         ModelTransform currentTransform = getCurrentTransform();
         if (transformController != null && currentTransform != null) {
@@ -335,9 +301,6 @@ public class GuiController {
         updateSceneInfo();
     }
 
-    /**
-     * Обновляет информацию о выбранной модели в UI.
-     */
     private void updateSceneInfo() {
         SceneModel current = getSelectedSceneModel();
 
@@ -377,9 +340,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Сбрасывает трансформации текущей модели к начальным значениям.
-     */
     @FXML
     private void handleResetTransform() {
         ModelTransform modelTransform = getCurrentTransform();
@@ -389,9 +349,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Устанавливает режим трансформации: перенос (MOVE).
-     */
     @FXML
     private void handleSetMoveMode() {
         if (transformController != null) {
@@ -399,9 +356,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Устанавливает режим трансформации: вращение (ROTATE).
-     */
     @FXML
     private void handleSetRotateMode() {
         if (transformController != null) {
@@ -409,9 +363,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Устанавливает режим трансформации: масштабирование (SCALE).
-     */
     @FXML
     private void handleSetScaleMode() {
         if (transformController != null) {
@@ -419,9 +370,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Настраивает горячие клавиши для меню.
-     */
     private void setupMenuAccelerators() {
         if (openMenuItem != null) {
             openMenuItem.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN));
@@ -440,10 +388,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обновляет информацию в строке состояния (status bar).
-     * Отображает позицию камеры, цель камеры и информацию о выбранной модели.
-     */
     private void updateStatusBar() {
         Vector3f pos = camera.getPosition();
         Vector3f target = camera.getTarget();
@@ -465,12 +409,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обрабатывает загрузку модели из файла.
-     * 
-     * <p>Показывает диалог выбора файла, загружает модель, выполняет триангуляцию
-     * и пересчет нормалей, затем добавляет модель в сцену.
-     */
     @FXML
     private void onOpenModelMenuItemClick() {
         FileChooser fileChooser = new FileChooser();
@@ -514,12 +452,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обрабатывает сохранение модели в файл.
-     * 
-     * <p>Показывает диалог выбора: сохранить исходную модель или с примененными трансформациями,
-     * затем показывает диалог выбора файла и сохраняет модель.
-     */
     @FXML
     private void onSaveModelMenuItemClick() {
         SceneModel current = getSelectedSceneModel();
@@ -546,9 +478,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Настраивает UI для настроек рендеринга (wireframe, filled, цвета, текстуры).
-     */
     private void setupDisplaySettingsUI() {
         if (showWireframeCheckBox != null) {
             showWireframeCheckBox.setSelected(renderSettings.isShowWireframe());
@@ -590,11 +519,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обрабатывает загрузку текстуры из файла.
-     * 
-     * <p>Показывает диалог выбора изображения и загружает его как текстуру.
-     */
     @FXML
     private void onLoadTextureButtonClick() {
         javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
@@ -621,9 +545,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обновляет метку с информацией о загруженной текстуре.
-     */
     private void updateTextureLabel() {
         if (textureNameLabel != null) {
             com.cgvsu.render_engine.Texture texture = renderSettings.getTexture();
@@ -635,9 +556,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Настраивает UI для управления списком моделей в сцене.
-     */
     private void setupSceneModelsUI() {
         if (modelsListView != null) {
             modelsListView.setItems(modelNames);
@@ -670,9 +588,6 @@ public class GuiController {
         updateModelActiveCheckBox();
     }
 
-    /**
-     * Обновляет состояние чекбокса активности модели.
-     */
     private void updateModelActiveCheckBox() {
         if (modelActiveCheckBox == null) return;
         SceneModel current = getSelectedSceneModel();
@@ -685,18 +600,12 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обрабатывает выход из приложения.
-     */
     @FXML
     private void onExitMenuItemClick() {
         Stage stage = (Stage) canvas.getScene().getWindow();
         stage.close();
     }
 
-    /**
-     * Показывает справку по управлению приложением.
-     */
     @FXML
     private void onHelpMenuItemClick() {
         Alert alert = new Alert(AlertType.INFORMATION);
@@ -723,9 +632,6 @@ public class GuiController {
         alert.showAndWait();
     }
 
-    /**
-     * Сбрасывает камеру в начальное положение.
-     */
     @FXML
     private void handleResetCamera() {
         if (cameraController != null) {
@@ -737,11 +643,6 @@ public class GuiController {
         updateStatusBar();
     }
 
-    /**
-     * Обрабатывает нажатие клавиши для управления камерой.
-     * 
-     * @param event событие нажатия клавиши
-     */
     private void handleKeyPressed(KeyEvent event) {
         if (cameraController == null) return;
         
@@ -783,20 +684,10 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обрабатывает отпускание клавиши.
-     * 
-     * @param event событие отпускания клавиши
-     */
     private void handleKeyReleased(KeyEvent event) {
 
     }
 
-    /**
-     * Обрабатывает нажатие кнопки мыши для управления камерой.
-     * 
-     * @param event событие нажатия мыши
-     */
     private void handleMousePressed(MouseEvent event) {
         if (event.isSecondaryButtonDown()) {
             // Правая кнопка мыши - показываем контекстное меню
@@ -806,44 +697,24 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обрабатывает перетаскивание мыши для поворота камеры.
-     * 
-     * @param event событие перетаскивания мыши
-     */
     private void handleMouseDragged(MouseEvent event) {
         if (cameraController != null && event.isPrimaryButtonDown()) {
             cameraController.onMouseDragged(event.getX(), event.getY());
         }
     }
 
-    /**
-     * Обрабатывает отпускание кнопки мыши.
-     * 
-     * @param event событие отпускания мыши
-     */
     private void handleMouseReleased(MouseEvent event) {
         if (cameraController != null) {
             cameraController.onMouseReleased();
         }
     }
 
-    /**
-     * Обрабатывает прокрутку колесика мыши для зума камеры.
-     * 
-     * @param event событие прокрутки
-     */
     private void handleScroll(ScrollEvent event) {
         if (cameraController != null) {
             cameraController.onMouseScroll(event.getDeltaY());
         }
     }
 
-    /**
-     * Обрабатывает движение камеры вперед (по направлению взгляда).
-     * 
-     * @param actionEvent событие действия (не используется)
-     */
     @FXML
     public void handleCameraForward(ActionEvent actionEvent) {
         if (cameraController != null) {
@@ -851,11 +722,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обрабатывает движение камеры назад (против направления взгляда).
-     * 
-     * @param actionEvent событие действия (не используется)
-     */
     @FXML
     public void handleCameraBackward(ActionEvent actionEvent) {
         if (cameraController != null) {
@@ -863,11 +729,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обрабатывает движение камеры влево.
-     * 
-     * @param actionEvent событие действия (не используется)
-     */
     @FXML
     public void handleCameraLeft(ActionEvent actionEvent) {
         if (cameraController != null) {
@@ -875,11 +736,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обрабатывает движение камеры вправо.
-     * 
-     * @param actionEvent событие действия (не используется)
-     */
     @FXML
     public void handleCameraRight(ActionEvent actionEvent) {
         if (cameraController != null) {
@@ -887,11 +743,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обрабатывает движение камеры вверх.
-     * 
-     * @param actionEvent событие действия (не используется)
-     */
     @FXML
     public void handleCameraUp(ActionEvent actionEvent) {
         if (cameraController != null) {
@@ -899,11 +750,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Обрабатывает движение камеры вниз.
-     * 
-     * @param actionEvent событие действия (не используется)
-     */
     @FXML
     public void handleCameraDown(ActionEvent actionEvent) {
         if (cameraController != null) {
@@ -911,12 +757,6 @@ public class GuiController {
         }
     }
 
-    /**
-     * Показывает диалог с сообщением об ошибке.
-     * 
-     * @param title заголовок диалога
-     * @param message текст сообщения
-     */
     private void showError(String title, String message) {
         Alert alert = new Alert(AlertType.ERROR);
         alert.setTitle(title);
@@ -925,12 +765,6 @@ public class GuiController {
         alert.showAndWait();
     }
 
-    /**
-     * Показывает диалог с сообщением об успешной операции.
-     * 
-     * @param title заголовок диалога
-     * @param message текст сообщения
-     */
     private void showSuccess(String title, String message) {
         Alert alert = new Alert(AlertType.INFORMATION);
         alert.setTitle(title);
@@ -1136,7 +970,7 @@ public class GuiController {
         
         if (pickResult.polygonIndex >= 0) {
             javafx.scene.control.MenuItem deletePolygonItem = new javafx.scene.control.MenuItem("Delete Polygon");
-            deletePolygonItem.setOnAction(e -> deletePolygonByIndex(current.getModel(), pickResult));
+            deletePolygonItem.setOnAction(e -> deletePolygonByIndex(current.getModel(), pickResult.polygonIndex));
             contextMenu.getItems().add(deletePolygonItem);
         }
         
@@ -1161,10 +995,6 @@ public class GuiController {
         int vertexIndex = -1;
         double polygonDistance = Double.MAX_VALUE;
         double vertexDistance = Double.MAX_VALUE;
-        
-        // Для триангуляции: информация о выбранном треугольнике
-        int triangleIndexInPolygon = -1; // Индекс треугольника в исходном полигоне (-1 если треугольник не выбран)
-        Polygon selectedTriangle = null; // Выбранный треугольник (null если не триангуляция)
     }
 
     /**
@@ -1195,125 +1025,46 @@ public class GuiController {
 
         final double PICK_TOLERANCE = 10.0; // Радиус выбора в пикселях
 
-        // Если триангуляция включена, триангулируем полигоны на лету при выборе,
-        // чтобы соответствовать тому, что пользователь видит на экране
-        boolean triangulationEnabled = renderSettings.isEnableTriangulation();
-        
-        if (triangulationEnabled) {
-            // Триангулируем полигоны на лету и проверяем треугольники
-            Triangulator triangulator = new EarCuttingTriangulator();
+        // Ищем ближайший полигон
+        for (int i = 0; i < model.getPolygonCount(); i++) {
+            Polygon polygon = model.getPolygon(i);
+            ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
             
-            for (int i = 0; i < model.getPolygonCount(); i++) {
-                Polygon polygon = model.getPolygon(i);
-                ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
-                
-                if (vertexIndices.size() < 3) {
-                    continue;
-                }
-
-                // Если полигон с 4+ вершинами, триангулируем его
-                List<Polygon> triangles;
-                if (vertexIndices.size() > 3) {
-                    triangles = triangulator.triangulatePolygon(model, polygon);
-                } else {
-                    // Полигон уже треугольник
-                    triangles = List.of(polygon);
-                }
-
-                // Проверяем каждый треугольник
-                int triangleIdx = 0;
-                for (Polygon triangle : triangles) {
-                    ArrayList<Integer> triVertexIndices = triangle.getVertexIndices();
-                    
-                    if (triVertexIndices.size() < 3) {
-                        triangleIdx++;
-                        continue;
-                    }
-
-                    // Преобразуем вершины треугольника в экранные координаты
-                    ArrayList<Point2f> screenPoints = new ArrayList<>();
-                    for (int vertexIdx : triVertexIndices) {
-                        if (vertexIdx < 0 || vertexIdx >= model.getVertexCount()) {
-                            continue;
-                        }
-                        Vector3f vertex = model.getVertex(vertexIdx);
-                        if (vertex == null) {
-                            continue;
-                        }
-
-                        Vector4f homogeneousVertex = new Vector4f(vertex, 1.0f);
-                        Vector4f transformed = mvpMatrix.multiply(homogeneousVertex);
-                        
-                        if (Math.abs(transformed.w) > 1e-7f) {
-                            transformed = transformed.divide(transformed.w);
-                        }
-                        
-                        Point2f screenPoint = vertexToPoint(transformed, width, height);
-                        screenPoints.add(screenPoint);
-                    }
-
-                    if (screenPoints.size() < 3) {
-                        triangleIdx++;
-                        continue;
-                    }
-
-                    // Проверяем, находится ли точка внутри треугольника или близко к нему
-                    double distance = distanceToPolygon(screenPoints, mouseX, mouseY);
-                    if (distance < PICK_TOLERANCE && distance < result.polygonDistance) {
-                        // Сохраняем информацию о выбранном треугольнике
-                        result.polygonIndex = i;
-                        result.polygonDistance = distance;
-                        result.triangleIndexInPolygon = triangleIdx;
-                        result.selectedTriangle = triangle;
-                        // Найдя ближайший треугольник, выходим из цикла по треугольникам,
-                        // но продолжаем искать в других полигонах для лучшего совпадения
-                        break;
-                    }
-                    triangleIdx++;
-                }
+            if (vertexIndices.size() < 3) {
+                continue;
             }
-        } else {
-            // Триангуляция выключена, используем оригинальные полигоны
-            for (int i = 0; i < model.getPolygonCount(); i++) {
-                Polygon polygon = model.getPolygon(i);
-                ArrayList<Integer> vertexIndices = polygon.getVertexIndices();
+
+            // Преобразуем вершины полигона в экранные координаты
+            ArrayList<Point2f> screenPoints = new ArrayList<>();
+            for (int vertexIdx : vertexIndices) {
+                if (vertexIdx < 0 || vertexIdx >= model.getVertexCount()) {
+                    continue;
+                }
+                Vector3f vertex = model.getVertex(vertexIdx);
+                if (vertex == null) {
+                    continue;
+                }
+
+                Vector4f homogeneousVertex = new Vector4f(vertex, 1.0f);
+                Vector4f transformed = mvpMatrix.multiply(homogeneousVertex);
                 
-                if (vertexIndices.size() < 3) {
-                    continue;
+                if (Math.abs(transformed.w) > 1e-7f) {
+                    transformed = transformed.divide(transformed.w);
                 }
+                
+                Point2f screenPoint = vertexToPoint(transformed, width, height);
+                screenPoints.add(screenPoint);
+            }
 
-                // Преобразуем вершины полигона в экранные координаты
-                ArrayList<Point2f> screenPoints = new ArrayList<>();
-                for (int vertexIdx : vertexIndices) {
-                    if (vertexIdx < 0 || vertexIdx >= model.getVertexCount()) {
-                        continue;
-                    }
-                    Vector3f vertex = model.getVertex(vertexIdx);
-                    if (vertex == null) {
-                        continue;
-                    }
+            if (screenPoints.size() < 3) {
+                continue;
+            }
 
-                    Vector4f homogeneousVertex = new Vector4f(vertex, 1.0f);
-                    Vector4f transformed = mvpMatrix.multiply(homogeneousVertex);
-                    
-                    if (Math.abs(transformed.w) > 1e-7f) {
-                        transformed = transformed.divide(transformed.w);
-                    }
-                    
-                    Point2f screenPoint = vertexToPoint(transformed, width, height);
-                    screenPoints.add(screenPoint);
-                }
-
-                if (screenPoints.size() < 3) {
-                    continue;
-                }
-
-                // Проверяем, находится ли точка внутри полигона или близко к нему
-                double distance = distanceToPolygon(screenPoints, mouseX, mouseY);
-                if (distance < PICK_TOLERANCE && distance < result.polygonDistance) {
-                    result.polygonIndex = i;
-                    result.polygonDistance = distance;
-                }
+            // Проверяем, находится ли точка внутри полигона или близко к нему
+            double distance = distanceToPolygon(screenPoints, mouseX, mouseY);
+            if (distance < PICK_TOLERANCE && distance < result.polygonDistance) {
+                result.polygonIndex = i;
+                result.polygonDistance = distance;
             }
         }
 
@@ -1425,12 +1176,12 @@ public class GuiController {
     }
 
     /**
-     * Удаляет полигон по индексу. При включенной триангуляции удаляет только выбранный треугольник.
+     * Удаляет полигон по индексу.
      * 
      * @param model модель
-     * @param pickResult результат выбора с информацией о полигоне и треугольнике
+     * @param polygonIndex индекс полигона
      */
-    private void deletePolygonByIndex(Model model, PickResult pickResult) {
+    private void deletePolygonByIndex(Model model, int polygonIndex) {
         try {
             // Спрашиваем, удалять ли неиспользуемые вершины
             Alert confirmDialog = new Alert(AlertType.CONFIRMATION);
@@ -1452,45 +1203,10 @@ public class GuiController {
             
             boolean deleteFreeVertices = confirmResult.isPresent() && confirmResult.get() == yesButton;
             
-            int polygonIndex = pickResult.polygonIndex;
-            Polygon originalPolygon = model.getPolygon(polygonIndex);
+            Set<Integer> polygonIndicesToDelete = new HashSet<>();
+            polygonIndicesToDelete.add(polygonIndex);
             
-            // Если триангуляция включена и выбран конкретный треугольник
-            if (renderSettings.isEnableTriangulation() && 
-                pickResult.selectedTriangle != null && 
-                pickResult.triangleIndexInPolygon >= 0 &&
-                originalPolygon.getVertexIndices().size() > 3) {
-                
-                // Триангулируем исходный полигон
-                Triangulator triangulator = new EarCuttingTriangulator();
-                List<Polygon> triangles = triangulator.triangulatePolygon(model, originalPolygon);
-                
-                if (triangles.size() > 1 && pickResult.triangleIndexInPolygon < triangles.size()) {
-                    // Удаляем выбранный треугольник из списка
-                    triangles.remove(pickResult.triangleIndexInPolygon);
-                    
-                    // Удаляем исходный полигон
-                    Set<Integer> polygonIndicesToDelete = new HashSet<>();
-                    polygonIndicesToDelete.add(polygonIndex);
-                    PolygonRemover.deletePolygons(model, polygonIndicesToDelete, false);
-                    
-                    // Добавляем оставшиеся треугольники как новые полигоны
-                    for (Polygon remainingTriangle : triangles) {
-                        model.addPolygon(remainingTriangle);
-                    }
-                } else {
-                    // Если остался только один треугольник или это последний, удаляем весь полигон
-                    Set<Integer> polygonIndicesToDelete = new HashSet<>();
-                    polygonIndicesToDelete.add(polygonIndex);
-                    PolygonRemover.deletePolygons(model, polygonIndicesToDelete, deleteFreeVertices);
-                }
-            } else {
-                // Обычное удаление полигона
-                Set<Integer> polygonIndicesToDelete = new HashSet<>();
-                polygonIndicesToDelete.add(polygonIndex);
-                PolygonRemover.deletePolygons(model, polygonIndicesToDelete, deleteFreeVertices);
-            }
-            
+            PolygonRemover.deletePolygons(model, polygonIndicesToDelete, deleteFreeVertices);
             NormalCalculator.recalculateNormals(model);
             
             updateStatusBar();

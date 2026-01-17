@@ -1,93 +1,42 @@
 package com.cgvsu.math;
 
 /**
- * Класс для работы с двумерными векторами.
- * 
- * <p>Предоставляет основные операции линейной алгебры для 2D векторов:
- * <ul>
- *   <li>Сложение и вычитание векторов</li>
- *   <li>Умножение и деление на скаляр</li>
- *   <li>Вычисление длины вектора</li>
- *   <li>Нормализация</li>
- *   <li>Скалярное произведение</li>
- * </ul>
- * 
- * <p>Используется для представления текстурных координат (UV), 
- * двумерных точек и направлений.
- * 
- * @author CGVSU Team
- * @version 1.0
+ * Двумерный вектор для работы с UV координатами и 2D точками.
  */
 public class Vector2f {
     
-    /**
-     * Эпсилон для сравнения чисел с плавающей точкой.
-     */
     private static final float EPSILON = 1e-7f;
     
-    /**
-     * X-компонента вектора.
-     */
     public float x;
-    
-    /**
-     * Y-компонента вектора.
-     */
     public float y;
 
-    /**
-     * Создает нулевой вектор
-     */
     public Vector2f() {
         this(0.0f, 0.0f);
     }
 
-    /**
-     * Создает вектор с заданными координатами
-     * @param x координата x
-     * @param y координата y
-     */
     public Vector2f(float x, float y) {
         this.x = x;
         this.y = y;
     }
 
-    /**
-     * Создает копию вектора
-     * @param other исходный вектор
-     */
     public Vector2f(Vector2f other) {
         requireNonNull(other, "Vector");
         this.x = other.x;
         this.y = other.y;
     }
 
-    /**
-     * Возвращает координату x
-     * @return координата x
-     */
     public float getX() {
         return x;
     }
 
-    /**
-     * Возвращает координату y
-     * @return координата y
-     */
     public float getY() {
         return y;
     }
 
-    /**
-     * Устанавливает координату x
-     */
     public void setX(float x) {
         this.x = x;
     }
 
-    /**
-     * Устанавливает координату y
-     */
     public void setY(float y) {
         this.y = y;
     }
@@ -99,31 +48,16 @@ public class Vector2f {
         }
     }
 
-    /**
-     * Сложение векторов
-     * @param other другой вектор
-     * @return новый вектор
-     */
     public Vector2f add(Vector2f other) {
         requireNonNull(other, "Vector");
         return new Vector2f(this.x + other.x, this.y + other.y);
     }
 
-    /**
-     * Вычитание векторов
-     * @param other другой вектор
-     * @return новый вектор
-     */
     public Vector2f subtract(Vector2f other) {
         requireNonNull(other, "Vector");
         return new Vector2f(this.x - other.x, this.y - other.y);
     }
 
-    /**
-     * Умножение на скаляр
-     * @param scalar скалярное значение
-     * @return новый вектор
-     */
     public Vector2f multiply(float scalar) {
         return new Vector2f(this.x * scalar, this.y * scalar);
     }
@@ -134,28 +68,15 @@ public class Vector2f {
         }
     }
 
-    /**
-     * Деление на скаляр
-     * @param scalar скалярное значение
-     * @return новый вектор
-     */
     public Vector2f divide(float scalar) {
         checkNonZero(scalar);
         return new Vector2f(this.x / scalar, this.y / scalar);
     }
 
-    /**
-     * Вычисление длины вектора
-     * @return длина вектора
-     */
     public float length() {
         return (float) Math.sqrt(x * x + y * y);
     }
 
-    /**
-     * Нормализация вектора
-     * @return новый нормализованный вектор
-     */
     public Vector2f normalize() {
         float len = length();
         if (len < EPSILON) {
@@ -164,19 +85,11 @@ public class Vector2f {
         return new Vector2f(this.x / len, this.y / len);
     }
 
-    /**
-     * Скалярное произведение
-     * @param other другой вектор
-     * @return скалярное произведение
-     */
     public float dot(Vector2f other) {
         requireNonNull(other, "Vector");
         return this.x * other.x + this.y * other.y;
     }
 
-    /**
-     * Сравнение векторов
-     */
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;

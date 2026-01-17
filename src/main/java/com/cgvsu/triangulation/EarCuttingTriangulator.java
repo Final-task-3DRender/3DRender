@@ -10,28 +10,7 @@ import java.util.function.Function;
 import static java.lang.Math.*;
 
 /**
- * Реализация триангулятора на основе алгоритма Ear-Cutting (отрезание ушей).
- * 
- * <p>Алгоритм работает следующим образом:
- * <ol>
- *   <li>Выбирает оптимальную проекцию полигона (XY, XZ или YZ плоскость)</li>
- *   <li>Определяет направление обхода вершин полигона</li>
- *   <li>Итеративно находит "ухо" (треугольник, который не содержит других вершин)</li>
- *   <li>Отрезает ухо, создавая треугольник, и продолжает с оставшимися вершинами</li>
- * </ol>
- * 
- * <p>Преимущества перед простой триангуляцией:
- * <ul>
- *   <li>Работает корректно с вогнутыми полигонами</li>
- *   <li>Выбирает оптимальную проекцию для триангуляции</li>
- *   <li>Проверяет направление обхода для корректной обработки</li>
- * </ul>
- * 
- * <p>Алгоритм основан на методе Ear-Cutting (Ear Clipping).
- * 
- * @author Adapted from triangulation-main project
- * @version 1.0
- * @see Triangulator
+ * Триангуляция полигонов алгоритмом Ear-Cutting.
  */
 public class EarCuttingTriangulator implements Triangulator {
     
@@ -146,18 +125,6 @@ public class EarCuttingTriangulator implements Triangulator {
         return newPolygons;
     }
     
-    /**
-     * Проверяет, находится ли какая-либо вершина внутри треугольника, используя барицентрические координаты.
-     * 
-     * @param barycentric массив для хранения барицентрических координат (переиспользуется)
-     * @param leftPointIndex индекс первой вершины треугольника
-     * @param middlePointIndex индекс второй вершины треугольника
-     * @param rightPointIndex индекс третьей вершины треугольника
-     * @param vertices карта индексов вершин на объекты Vector3f
-     * @param getterFirst функция для получения первой координаты (X, Y или Z)
-     * @param getterSecond функция для получения второй координаты (X, Y или Z)
-     * @return true, если хотя бы одна вершина находится внутри треугольника
-     */
     protected boolean isAnyVertexInsideTriangleByBarycentric(
             float[] barycentric,
             int leftPointIndex, int middlePointIndex, int rightPointIndex,
@@ -200,15 +167,6 @@ public class EarCuttingTriangulator implements Triangulator {
         return false;
     }
     
-    /**
-     * Выбирает оптимальные оси для проекции полигона на плоскость.
-     * 
-     * <p>Алгоритм выбирает пару осей (XY, XZ или YZ), которая дает наилучшую проекцию
-     * для триангуляции. Избегает случаев, когда все вершины лежат на одной прямой.
-     * 
-     * @param vertices список вершин полигона
-     * @return список из двух функций-геттеров для координат, или null если триангуляция невозможна
-     */
     protected List<Function<Vector3f, Float>> chooseAxes(List<Vector3f> vertices) {
         float minX = Float.MAX_VALUE;
         float maxX = -Float.MAX_VALUE;
@@ -279,17 +237,6 @@ public class EarCuttingTriangulator implements Triangulator {
         return List.of(dyGetter, dzGetter);
     }
     
-    /**
-     * Определяет порядок задания вершин в полигоне (направление обхода).
-     * 
-     * <p>Использует векторное произведение для определения направления обхода:
-     * по часовой стрелке или против часовой стрелки.
-     * 
-     * @param vertices список вершин полигона в определенном порядке
-     * @param getterFirst функция для получения первой координаты
-     * @param getterSecond функция для получения второй координаты
-     * @return направление обхода вершин полигона
-     */
     public ByPassDirection findDirection(List<Vector3f> vertices, Function<Vector3f, Float> getterFirst,
                                          Function<Vector3f, Float> getterSecond) {
         int indexOfFoundingVertex = 0;
@@ -328,22 +275,6 @@ public class EarCuttingTriangulator implements Triangulator {
         return cross > 0 ? ByPassDirection.SECOND : ByPassDirection.FIRST;
     }
     
-    /**
-     * Вычисляет барицентрические координаты точки относительно треугольника.
-     * 
-     * <p>Барицентрические координаты показывают, как точка может быть выражена
-     * как взвешенная сумма вершин треугольника.
-     * 
-     * @param barycentric массив для хранения результата [alpha, beta, gamma]
-     * @param xCur X-координата точки
-     * @param yCur Y-координата точки
-     * @param x0 X-координата первой вершины треугольника
-     * @param y0 Y-координата первой вершины треугольника
-     * @param x1 X-координата второй вершины треугольника
-     * @param y1 Y-координата второй вершины треугольника
-     * @param x2 X-координата третьей вершины треугольника
-     * @param y2 Y-координата третьей вершины треугольника
-     */
     public static void findBarycentricCords(float[] barycentric, float xCur, float yCur,
                                             float x0, float y0, float x1, float y1, float x2, float y2) {
         float mainDet = findThirdOrderDeterminant(
@@ -380,20 +311,6 @@ public class EarCuttingTriangulator implements Triangulator {
         barycentric[2] = detForLambda / mainDet;
     }
     
-    /**
-     * Вычисляет определитель матрицы 3x3.
-     * 
-     * @param a00 элемент матрицы [0,0]
-     * @param a01 элемент матрицы [0,1]
-     * @param a02 элемент матрицы [0,2]
-     * @param a10 элемент матрицы [1,0]
-     * @param a11 элемент матрицы [1,1]
-     * @param a12 элемент матрицы [1,2]
-     * @param a20 элемент матрицы [2,0]
-     * @param a21 элемент матрицы [2,1]
-     * @param a22 элемент матрицы [2,2]
-     * @return значение определителя
-     */
     public static float findThirdOrderDeterminant(
             float a00, float a01, float a02,
             float a10, float a11, float a12,

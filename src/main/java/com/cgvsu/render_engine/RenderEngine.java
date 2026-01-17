@@ -21,39 +21,8 @@ import com.cgvsu.triangulation.Triangulator;
 import static com.cgvsu.render_engine.GraphicConveyor.vertexToPoint;
 
 /**
- * Основной класс рендер-движка для отрисовки 3D моделей.
- * 
- * <p>Реализует полный графический конвейер согласно теории из методички:
- * <ol>
- *   <li>Преобразование из локальных координат в мировые (Model Matrix) - аффинные преобразования</li>
- *   <li>Преобразование из мировых координат в координаты камеры (View Matrix) - LookAt алгоритм</li>
- *   <li>Перспективная проекция (Projection Matrix) - перспективное преобразование</li>
- *   <li>Преобразование в экранные координаты - NDC к экранным координатам</li>
- *   <li>Растеризация треугольников с поддержкой Z-buffer и текстур</li>
- * </ol>
- * 
- * <p>Поддерживает режимы отрисовки (задание для третьего человека):
- * <ul>
- *   <li>Растеризация полигонов одним цветом с Z-buffer</li>
- *   <li>Наложение текстуры (текстура загружается через меню)</li>
- *   <li>Wireframe режим (рисование полигональной сетки)</li>
- *   <li>Filled режим (заливка треугольников)</li>
- * </ul>
- * 
- * <p>Технические особенности:
- * <ul>
- *   <li>Z-buffer для правильной отрисовки глубины (задние полигоны не вылазят на передние)</li>
- *   <li>Backface culling для оптимизации (опционально)</li>
- *   <li>Текстуры с perspective-correct interpolation (перспективно-корректная интерполяция UV)</li>
- *   <li>Динамическая триангуляция полигонов (Ear-Cutting Triangulator)</li>
- *   <li>Пересчет нормалей при загрузке модели (всегда, даже если есть в файле)</li>
- *   <li>Оптимизация для больших моделей (пропуск полигонов при большом количестве)</li>
- * </ul>
- * 
- * <p>Использует векторы-столбцы. Порядок умножения матриц: P * V * M.
- * 
- * @author CGVSU Team
- * @version 1.0
+ * Рендер-движок для отрисовки 3D моделей.
+ * Реализует графический конвейер: Model * View * Projection, растеризацию с Z-buffer и текстурами.
  */
 public class RenderEngine {
 
@@ -84,9 +53,6 @@ public class RenderEngine {
     private static final float W_EPSILON = 1e-7f;
     private static final float PARAMETER_EPSILON = 1e-5f;
     
-    /**
-     * Сравнивает два вектора с учетом эпсилона.
-     */
     private static boolean vectorsEqual(Vector3f v1, Vector3f v2, float epsilon) {
         if (v1 == null && v2 == null) return true;
         if (v1 == null || v2 == null) return false;
@@ -95,15 +61,6 @@ public class RenderEngine {
                Math.abs(v1.z - v2.z) < epsilon;
     }
 
-    /**
-     * Рендерит модель без трансформаций и с настройками по умолчанию.
-     * 
-     * @param graphicsContext контекст графики JavaFX для отрисовки
-     * @param camera камера для определения точки зрения
-     * @param mesh модель для отрисовки
-     * @param width ширина области отрисовки
-     * @param height высота области отрисовки
-     */
     public static void render(
             final GraphicsContext graphicsContext,
             final Camera camera,
@@ -114,16 +71,6 @@ public class RenderEngine {
         render(graphicsContext, camera, mesh, null, width, height);
     }
 
-    /**
-     * Рендерит модель с трансформациями и настройками по умолчанию.
-     * 
-     * @param graphicsContext контекст графики JavaFX для отрисовки
-     * @param camera камера для определения точки зрения
-     * @param mesh модель для отрисовки
-     * @param transform трансформации модели (позиция, вращение, масштаб), может быть null
-     * @param width ширина области отрисовки
-     * @param height высота области отрисовки
-     */
     public static void render(
             final GraphicsContext graphicsContext,
             final Camera camera,
@@ -148,26 +95,6 @@ public class RenderEngine {
         render(graphicsContext, camera, mesh, transform, width, height, defaultSettings);
     }
 
-    /**
-     * Рендерит модель с полным контролем над настройками.
-     * 
-     * <p>Основной метод рендеринга, выполняющий полный графический конвейер:
-     * <ol>
-     *   <li>Строит матрицы преобразования (Model, View, Projection)</li>
-     *   <li>Комбинирует их в MVP матрицу (P * V * M для векторов-столбцов)</li>
-     *   <li>Преобразует вершины через MVP матрицу</li>
-     *   <li>Выполняет backface culling (если включен)</li>
-     *   <li>Растеризует треугольники с поддержкой Z-buffer и текстур</li>
-     * </ol>
-     * 
-     * @param graphicsContext контекст графики JavaFX для отрисовки
-     * @param camera камера для определения точки зрения
-     * @param mesh модель для отрисовки
-     * @param transform трансформации модели (позиция, вращение, масштаб), может быть null
-     * @param width ширина области отрисовки
-     * @param height высота области отрисовки
-     * @param settings настройки рендеринга (цвета, режимы отрисовки, Z-buffer и т.д.)
-     */
     public static void render(
             final GraphicsContext graphicsContext,
             final Camera camera,
@@ -446,15 +373,6 @@ public class RenderEngine {
         }
     }
 
-    /**
-     * Проверяет, является ли треугольник передней гранью (front-facing).
-     * Использует проверку порядка вершин (winding order) в экранных координатах.
-     * 
-     * @param v0 первая вершина треугольника в NDC пространстве
-     * @param v1 вторая вершина треугольника в NDC пространстве
-     * @param v2 третья вершина треугольника в NDC пространстве
-     * @return true если треугольник front-facing (видим), false если back-facing (невидим)
-     */
     private static boolean isFrontFacing(Vector4f v0, Vector4f v1, Vector4f v2) {
         float edge1x = v1.x - v0.x;
         float edge1y = v1.y - v0.y;
@@ -466,18 +384,6 @@ public class RenderEngine {
         return crossZ < 0;
     }
 
-    /**
-     * Получает UV координаты для трех вершин из полигона.
-     * 
-     * <p>Извлекает текстурные координаты из модели для указанных индексов вершин полигона.
-     * Если текстура не используется или координаты недоступны, возвращает нули.
-     * 
-     * @param mesh модель с текстурными координатами
-     * @param polygon полигон с индексами текстурных вершин (не используется, но оставлен для ясности)
-     * @param textureIndices индексы текстурных вершин из полигона (может быть null)
-     * @param vertexIndicesInPolygon массив из 3 индексов вершин в полигоне (например, [0, 1, 2] или [0, i, i+1])
-     * @return массив из 6 float значений: [u0, v0, u1, v1, u2, v2]
-     */
     private static float[] getUVCoordinates(
             Model mesh, 
             Polygon polygon, 
@@ -502,15 +408,6 @@ public class RenderEngine {
         return uv;
     }
     
-    /**
-     * Отрисовывает wireframe (обводку) для треугольника.
-     * 
-     * @param graphicsContext контекст для отрисовки
-     * @param wireframeColor цвет обводки
-     * @param p0 первая точка треугольника
-     * @param p1 вторая точка треугольника
-     * @param p2 третья точка треугольника
-     */
     private static void drawWireframeTriangle(
             GraphicsContext graphicsContext,
             Color wireframeColor,
@@ -521,13 +418,6 @@ public class RenderEngine {
         graphicsContext.strokeLine(p2.x, p2.y, p0.x, p0.y);
     }
     
-    /**
-     * Отрисовывает wireframe (обводку) для полигона с произвольным количеством вершин.
-     * 
-     * @param graphicsContext контекст для отрисовки
-     * @param wireframeColor цвет обводки
-     * @param points точки полигона в экранных координатах
-     */
     private static void drawWireframePolygon(
             GraphicsContext graphicsContext,
             Color wireframeColor,
@@ -547,19 +437,6 @@ public class RenderEngine {
         );
     }
     
-    /**
-     * Рендерит треугольник с учетом всех настроек (заливка, текстура, wireframe).
-     * 
-     * @param graphicsContext контекст для отрисовки
-     * @param zBuffer Z-buffer для проверки глубины
-     * @param settings настройки рендеринга
-     * @param resultPoints точки треугольника в экранных координатах
-     * @param resultZ значения Z для вершин
-     * @param resultInvW обратные значения w для вершин
-     * @param uv UV координаты [u0, v0, u1, v1, u2, v2]
-     * @param triangleColor цвет треугольника
-     * @param wireframeColor цвет обводки
-     */
     private static void renderTriangle(
             GraphicsContext graphicsContext,
             ZBuffer zBuffer,
@@ -593,15 +470,6 @@ public class RenderEngine {
         }
     }
     
-    /**
-     * Проверяет, является ли треугольник передней гранью, используя нормаль в пространстве камеры.
-     * 
-     * @param mesh модель
-     * @param polygonIndex индекс полигона
-     * @param modelMatrix матрица модели
-     * @param viewMatrix матрица вида
-     * @return true если треугольник front-facing (видим), false если back-facing (невидим) или вырожденный
-     */
     private static boolean isFrontFacingByNormal(
             Model mesh, int polygonIndex, Matrix4f modelMatrix, Matrix4f viewMatrix) {
         if (polygonIndex >= mesh.getPolygonCount()) {

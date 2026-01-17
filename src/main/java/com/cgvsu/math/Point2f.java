@@ -1,55 +1,24 @@
 package com.cgvsu.math;
 
 /**
- * Класс для представления двумерных точек на экране.
- * 
- * <p>Используется для хранения экранных координат после преобразования
- * вершин через графический конвейер. Отличается от Vector2f тем, что
- * представляет именно точку, а не вектор (направление).
- * 
- * <p>Предоставляет методы сравнения с учетом погрешности вычислений.
- * 
- * @author CGVSU Team
- * @version 1.0
+ * Двумерная точка для экранных координат.
  */
 public class Point2f {
     
-    /**
-     * Эпсилон для сравнения чисел с плавающей точкой.
-     */
     private static final float EPSILON = 1e-7f;
     
-    /**
-     * X-координата точки.
-     */
     public float x;
-    
-    /**
-     * Y-координата точки.
-     */
     public float y;
 
-    /**
-     * Создает точку в начале координат
-     */
     public Point2f() {
         this(0.0f, 0.0f);
     }
 
-    /**
-     * Создает точку с заданными координатами
-     * @param x координата x
-     * @param y координата y
-     */
     public Point2f(float x, float y) {
         this.x = x;
         this.y = y;
     }
 
-    /**
-     * Создает копию точки
-     * @param other исходная точка
-     */
     public Point2f(Point2f other) {
         if (other == null) {
             throw new IllegalArgumentException("Point не может быть null");
@@ -58,18 +27,10 @@ public class Point2f {
         this.y = other.y;
     }
 
-    /**
-     * Возвращает координату x
-     * @return координата x
-     */
     public float getX() {
         return x;
     }
 
-    /**
-     * Возвращает координату y
-     * @return координата y
-     */
     public float getY() {
         return y;
     }

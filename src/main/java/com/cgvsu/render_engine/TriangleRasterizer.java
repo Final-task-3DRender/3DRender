@@ -5,27 +5,7 @@ import javafx.scene.image.PixelWriter;
 import javafx.scene.paint.Color;
 
 /**
- * Оптимизированный класс для растеризации треугольников с интерполяцией цвета, Z-buffer и текстур.
- * 
- * <p>Реализует алгоритм растеризации треугольников с поддержкой:
- * <ul>
- *   <li>Perspective-correct interpolation для Z и UV координат</li>
- *   <li>Z-buffer для правильной отрисовки глубины</li>
- *   <li>Текстуры с билинейной интерполяцией</li>
- *   <li>Интерполяцию цвета между вершинами</li>
- * </ul>
- * 
- * <p>Основные оптимизации:
- * <ul>
- *   <li>Адаптивный выбор режима рендеринга (быстрый/точный) в зависимости от размера треугольника</li>
- *   <li>Оптимизированный алгоритм растеризации ребер (алгоритм Брезенхема)</li>
- *   <li>Эффективное использование памяти</li>
- *   <li>Защита от зависания при больших треугольниках (ограничение области рендеринга)</li>
- *   <li>Frustum culling (отбрасывание треугольников вне экрана)</li>
- * </ul>
- * 
- * @author CGVSU Team
- * @version 1.0
+ * Растеризация треугольников с поддержкой Z-buffer и текстур.
  */
 public class TriangleRasterizer {
 
@@ -40,17 +20,6 @@ public class TriangleRasterizer {
     private static final double ONE_OVER_W_EPSILON = 1e-10;
     private static final int MAX_LINE_STEPS = 100000;
     
-    /**
-     * Заливает треугольник с интерполяцией цвета.
-     * 
-     * @param gc GraphicsContext для отрисовки
-     * @param x0, y0 координаты первой вершины
-     * @param c0 цвет первой вершины
-     * @param x1, y1 координаты второй вершины
-     * @param c1 цвет второй вершины
-     * @param x2, y2 координаты третьей вершины
-     * @param c2 цвет третьей вершины
-     */
     public static void fillTriangle(
             GraphicsContext gc,
             double x0, double y0, Color c0,
@@ -62,18 +31,6 @@ public class TriangleRasterizer {
                      x2, y2, 0.0f, 1.0f, 0.0f, 0.0f, c2);
     }
     
-    /**
-     * Заливает треугольник с интерполяцией цвета и поддержкой Z-buffer.
-     * 
-     * @param gc GraphicsContext для отрисовки
-     * @param zBuffer Z-buffer для проверки глубины (может быть null)
-     * @param x0, y0, z0 координаты и глубина первой вершины
-     * @param c0 цвет первой вершины
-     * @param x1, y1, z1 координаты и глубина второй вершины
-     * @param c1 цвет второй вершины
-     * @param x2, y2, z2 координаты и глубина третьей вершины
-     * @param c2 цвет третьей вершины
-     */
     public static void fillTriangle(
             GraphicsContext gc,
             ZBuffer zBuffer,
@@ -89,25 +46,6 @@ public class TriangleRasterizer {
                      x2, y2, z2, 1.0f, 0.0f, 0.0f, c2);
     }
     
-    /**
-     * Заливает треугольник с интерполяцией цвета, поддержкой Z-buffer и текстур.
-     * 
-     * @param gc GraphicsContext для отрисовки
-     * @param zBuffer Z-buffer для проверки глубины (может быть null)
-     * @param texture текстура для наложения (может быть null)
-     * @param x0, y0, z0 координаты и глубина (z/w) первой вершины
-     * @param invW0 обратное значение w (1/w) первой вершины для perspective-correct interpolation
-     * @param u0, v0 UV координаты первой вершины
-     * @param c0 цвет первой вершины
-     * @param x1, y1, z1 координаты и глубина (z/w) второй вершины
-     * @param invW1 обратное значение w (1/w) второй вершины для perspective-correct interpolation
-     * @param u1, v1 UV координаты второй вершины
-     * @param c1 цвет второй вершины
-     * @param x2, y2, z2 координаты и глубина (z/w) третьей вершины
-     * @param invW2 обратное значение w (1/w) третьей вершины для perspective-correct interpolation
-     * @param u2, v2 UV координаты третьей вершины
-     * @param c2 цвет третьей вершины
-     */
     public static void fillTriangle(
             GraphicsContext gc,
             ZBuffer zBuffer,
@@ -174,9 +112,6 @@ public class TriangleRasterizer {
                          triangleArea, minY, maxY, width, height);
     }
 
-    /**
-     * Проверяет валидность координат треугольника.
-     */
     private static boolean validateCoordinates(
             double x0, double y0, double x1, double y1, double x2, double y2,
             int width, int height) {
@@ -198,9 +133,6 @@ public class TriangleRasterizer {
                maxCoordY <= height * MAX_COORD_MULTIPLIER;
     }
 
-    /**
-     * Ограничивает область рендеринга для очень больших треугольников.
-     */
     private static int limitRenderingArea(
             int minY, int maxY, int minX, int maxX,
             int width, int height, int rows) {
@@ -218,9 +150,6 @@ public class TriangleRasterizer {
         return rows;
     }
 
-    /**
-     * Основной метод растеризации треугольника.
-     */
     private static void rasterizeTriangle(
             PixelWriter writer,
             ZBuffer zBuffer,
@@ -298,9 +227,6 @@ public class TriangleRasterizer {
                          triangleArea, minY, maxY, width, height);
     }
 
-    /**
-     * Заполняет строки треугольника.
-     */
     private static void fillTriangleRows(
             PixelWriter writer,
             ZBuffer zBuffer,
@@ -478,17 +404,11 @@ public class TriangleRasterizer {
         }
     }
 
-    /**
-     * Определяет, нужно ли использовать быстрый режим рендеринга.
-     */
     private static boolean shouldUseFastMode(int pixelCount, double triangleArea, int width, int height) {
         return pixelCount > FAST_MODE_THRESHOLD || 
                triangleArea > width * height * LARGE_TRIANGLE_THRESHOLD;
     }
 
-    /**
-     * Быстрое заполнение строки (линейная интерполяция).
-     */
     private static void fillRowFast(
             PixelWriter writer,
             ZBuffer zBuffer,
@@ -598,9 +518,6 @@ public class TriangleRasterizer {
         }
     }
 
-    /**
-     * Точное заполнение строки (барицентрические координаты с perspective-correct interpolation).
-     */
     private static void fillRowPrecise(
             PixelWriter writer,
             ZBuffer zBuffer,
@@ -707,9 +624,6 @@ public class TriangleRasterizer {
         }
     }
 
-    /**
-     * Растеризует одно ребро треугольника алгоритмом Брезенхема.
-     */
     private static void rasterizeEdge(
             double x0d, double y0d, float z0, float invW0, float u0, float v0, Color c0,
             double x1d, double y1d, float z1, float invW1, float u1, float v1, Color c1,
@@ -833,9 +747,6 @@ public class TriangleRasterizer {
         }
     }
 
-    /**
-     * Обновляет границы ребра для строки.
-     */
     private static void updateEdgeBounds(
             int x, float z, float invW, float u, float v, Color c,
             double[] leftX, double[] rightX,
@@ -886,9 +797,6 @@ public class TriangleRasterizer {
         }
     }
 
-    /**
-     * Интерполирует цвет между двумя цветами.
-     */
     private static Color interpolateColor(Color c0, Color c1, double t) {
         double r = c0.getRed() * (1.0 - t) + c1.getRed() * t;
         double g = c0.getGreen() * (1.0 - t) + c1.getGreen() * t;
@@ -897,9 +805,6 @@ public class TriangleRasterizer {
         return new Color(r, g, b, a);
     }
 
-    /**
-     * Вычисляет площадь треугольника (удвоенную, со знаком).
-     */
     private static double computeTriangleArea(
             double x0, double y0,
             double x1, double y1,
@@ -907,9 +812,6 @@ public class TriangleRasterizer {
         return (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
     }
 
-    /**
-     * Рисует вырожденный треугольник (линия или точка).
-     */
     private static void drawDegenerateTriangle(
             PixelWriter writer,
             ZBuffer zBuffer,
@@ -934,18 +836,12 @@ public class TriangleRasterizer {
         }
     }
 
-    /**
-     * Вычисляет квадрат расстояния между двумя точками.
-     */
     private static double distanceSquared(double x0, double y0, double x1, double y1) {
         double dx = x1 - x0;
         double dy = y1 - y0;
         return dx * dx + dy * dy;
     }
 
-    /**
-     * Рисует линию алгоритмом Брезенхема.
-     */
     private static void drawLine(
             PixelWriter writer,
             ZBuffer zBuffer,
